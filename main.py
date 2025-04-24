@@ -10,76 +10,9 @@ import sounddevice as sd
 import soundfile as sf
 import undetected_chromedriver
 import time
-
-class ProxyExtension:
-    manifest_json = """
-    {
-        "version": "1.0.0",
-        "manifest_version": 2,
-        "name": "Chrome Proxy",
-        "permissions": [
-            "proxy",
-            "tabs",
-            "unlimitedStorage",
-            "storage",
-            "<all_urls>",
-            "webRequest",
-            "webRequestBlocking"
-        ],
-        "background": {"scripts": ["background.js"]},
-        "minimum_chrome_version": "76.0.0"
-    }
-    """
-
-    background_js = """
-    var config = {
-        mode: "fixed_servers",
-        rules: {
-            singleProxy: {
-                scheme: "http",
-                host: "%s",
-                port: %d
-            },
-            bypassList: ["localhost"]
-        }
-    };
-
-    chrome.proxy.settings.set({value: config, scope: "regular"}, function() {});
-
-    function callbackFn(details) {
-        return {
-            authCredentials: {
-                username: "%s",
-                password: "%s"
-            }
-        };
-    }
-
-    chrome.webRequest.onAuthRequired.addListener(
-        callbackFn,
-        { urls: ["<all_urls>"] },
-        ['blocking']
-    );
-    """
-
-    def __init__(self, host, port, user, password):
-        self._dir = os.path.normpath(tempfile.mkdtemp())
-
-        manifest_file = os.path.join(self._dir, "manifest.json")
-        with open(manifest_file, mode="w") as f:
-            f.write(self.manifest_json)
-
-        background_js = self.background_js % (host, port, user, password)
-        background_file = os.path.join(self._dir, "background.js")
-        with open(background_file, mode="w") as f:
-            f.write(background_js)
-
-    @property
-    def directory(self):
-        return self._dir
-
-    def __del__(self):
-        shutil.rmtree(self._dir)
+import requests
+import sys, os
+import nodriver
 
 
 async def get_court(page, restricted_time, desired_court=None):
@@ -269,9 +202,24 @@ async def check_for_element(page, selector, click=False, debug=False):
 
 async def main(input_date, categories, restricted_time, amount, desired_court=None):
     try:
-        print(input_date, categories, restricted_time, amount, desired_court)
+        # print(input_date, categories, restricted_time, amount, desired_court)
         link = 'https://tickets.rolandgarros.com/en/'
-        driver = await uc.start()
+        
+        adspower = input('adspower api: ').strip()
+        adspower_id = input('adspower id: ').strip()
+        adspower_link = f"{adspower}/api/v1/browser/start?user_id={adspower_id}"
+
+        resp = requests.get(adspower_link).json()
+        if resp["code"] != 0:
+            print(resp["msg"])
+            print("please check ads_id")
+            sys.exit()
+        host, port = resp['data']['ws']['selenium'].split(':')
+        # print(adspower_link)
+
+        config = nodriver.Config(user_data_dir=None, headless=False, browser_executable_path=None, \
+        browser_args=None, sandbox=True, lang='en-US', host=host, port=int(port))
+        driver = await uc.Browser.create(config=config)
 
         page = await driver.get(link)
         input('continue?')
