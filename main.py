@@ -13,6 +13,8 @@ import time
 import requests
 import sys, os
 import nodriver
+from filtration import filter_seats
+import json
 
 
 async def get_court(page, restricted_time, desired_court=None):
@@ -35,8 +37,9 @@ async def get_court(page, restricted_time, desired_court=None):
 
 async def get_ticket(page, amount, categories=None):
     try:
-        if await page.wait_for("div[class='category dropdown-np w-dropdown-toggle']"):
-            tickets = await page.query_selector_all("div[class='category dropdown-np w-dropdown-toggle']")
+        if await custom_wait(page, "div[class='category dropdown-np w-dropdown-toggle']", timeout=3):
+            tickets = await custom_wait_elements(page, "div[class='category dropdown-np w-dropdown-toggle']", timeout=1)
+            if not tickets: return False
             while True:
                 ticket = random.choice(tickets)
                 category_element = await ticket.query_selector('h2 div')
@@ -77,7 +80,6 @@ async def get_stadion_ticket(page):
 
 
 async def custom_wait(page, selector, timeout=10):
-    print('in custom wait')
     for _ in range(0, timeout):
         try:
             element = await page.query_selector(selector)
@@ -90,7 +92,6 @@ async def custom_wait(page, selector, timeout=10):
 
 
 async def custom_wait_elements(page, selector, timeout=10):
-    print('in custom wait')
     for _ in range(0, timeout):
         try:
             element = await page.query_selector_all(selector)
@@ -98,7 +99,7 @@ async def custom_wait_elements(page, selector, timeout=10):
             time.sleep(1)
         except Exception as e: 
             time.sleep(1)
-            print(e)
+            # print(e)
     return False
 
 
@@ -121,12 +122,12 @@ async def check_seat_recursively(page, seat_id, direction, required_seats):
 async def get_seat(page, amount):
     try:
         print('in get_seat')
-        if await check_for_element(page, "polygon[class='polygon has-tooltip']", debug=True) or \
-        await check_for_element(page, "polygon[class='polygon']", debug=True):
+        if await check_for_element(page, "polygon[class='polygon has-tooltip']") or \
+        await check_for_element(page, "polygon[class='polygon']"):
             try: seats = await page.query_selector_all("polygon[class='polygon has-tooltip']")
             except Exception as e: print('seats has-tooltoip', e)
             if seats == []:
-                try:seats = await page.query_selector_all("polygon[class='polygon']")
+                try: seats = await page.query_selector_all("polygon[class='polygon']")
                 except Exception as e: print('seats polygon', e)
             seat = random.choice(seats)
             seat_id = str(seat.attrs['id'])
@@ -151,11 +152,15 @@ async def get_seat(page, amount):
                 if not seats: 
                     print('no seat available')
                     return False
+                
                 print(seats)
-                seat = random.choice(seats)
-                seat_id = str(seat.attrs['id'])
-                print(seat_id)
+                polygon_ids = [seat.attrs['id'] for seat in seats if seat.attrs.get('id') is not None]
+                print(polygon_ids)
+                
                 if int(amount) == 1:
+                    seat = random.choice(seats)
+                    seat_id = str(seat.attrs['id'])
+                    print(seat_id)
                     await seat.mouse_move()
                     time.sleep(1)
                     await seat.mouse_click()
@@ -164,19 +169,21 @@ async def get_seat(page, amount):
                     print('after click')
 
                 elif int(amount) > 1:
-                    forward_seats_found = await check_seat_recursively(page, int(seat_id) + 1, 1, int(amount))
-                    backward_seats_found = await check_seat_recursively(page, int(seat_id) - 1, -1, int(amount))
-
-                    if forward_seats_found or backward_seats_found:
-                        print('Found enough seats')
+                    filtered_seats = filter_seats(polygon_ids, amount)
+                    if not filtered_seats: 
+                        print('Not enough seats found')
+                        return False
+                    random_seats_arr = random.choice(filtered_seats)
+                    for seat_id in random_seats_arr:
+                        seat = await check_for_element(page, f'polygon[class="polygon"][id="{seat_id}"]', debug=True)
+                        if not seat: break
                         await seat.mouse_move()
                         time.sleep(1)
                         await seat.mouse_click()
                         time.sleep(1)
                         await get_stadion_ticket(page)
                         print('after click')
-                    else:
-                        print('Not enough seats found')
+
                 if await custom_wait(page, 'div[class="ConfirmationSelectionPanel"]', timeout=5):
                     data, fs = sf.read('notify.wav', dtype='float32')  
                     sd.play(data, fs)
@@ -200,9 +207,8 @@ async def check_for_element(page, selector, click=False, debug=False):
         return False
 
 
-async def main(input_date, categories, restricted_time, amount, desired_court=None):
+async def main():
     try:
-        # print(input_date, categories, restricted_time, amount, desired_court)
         link = 'https://tickets.rolandgarros.com/en/'
         
         adspower = input('adspower api: ').strip()
@@ -223,7 +229,24 @@ async def main(input_date, categories, restricted_time, amount, desired_court=No
 
         page = await driver.get(link)
         input('continue?')
+        
         while True:
+            try:
+                ticketBotSettings = await get_indexeddb_data(page, 'TicketBotDB', 'settings')
+                input_date = ticketBotSettings.get('date')
+                categories = ticketBotSettings.get('categories')
+                restricted_time = ticketBotSettings.get('sessions')
+                amount = int(ticketBotSettings.get('amount')) if ticketBotSettings else None
+                desired_court = ticketBotSettings.get('courts')
+                stopExecutionFlag = ticketBotSettings.get('stopExecutionFlag')
+                if stopExecutionFlag:
+                    time.sleep(5)
+                    continue
+            except Exception as e:
+                print(f"Error fetching data from IndexedDB: {e}")
+                ticketBotSettings = None
+                time.sleep(60)
+                continue
             try:
                 if await check_for_element(page, '.stadium-image', debug=True): await check_for_element(page, 'div.nav-web > div > div > button', click=True, debug=True)
                 if await check_for_element(page, 'div[class="EmptyCart container-main py-40"]', debug=True): await check_for_element(page, 'div.nav-web > div > div > button', click=True, debug=True)
@@ -288,23 +311,129 @@ async def main(input_date, categories, restricted_time, amount, desired_court=No
         
     except Exception as e: print(e)
 
+
+# @eel.expose
+# def start_workers(initialUrl, isSlack, browsersAmount, isVpn, proxyList):
+#     print(initialUrl, isSlack, browsersAmount, isVpn, proxyList)
+#     threads = []
+#     if isSlack:
+#         flask_thread = threading.Thread(target=run_flask)
+#         flask_thread.daemon = True
+#         flask_thread.start()
+#     for i in range(1, int(browsersAmount)+1):  # Example: 3 threads, modify as needed
+#         if i!= 1: time.sleep(i*30)
+#         thread = threading.Thread(target=main, args=(i, initialUrl, isSlack, browsersAmount, isVpn, proxyList))
+#         threads.append(thread)
+#         thread.start()
+#     # Wait for all threads to complete
+#     for thread in threads:
+#         thread.join()
+
+
+async def get_indexeddb_data(driver, db_name, store_name, key=1):
+    # Build a snippet that returns a Promise resolving to your settings JSON or null
+    script = f"""
+    (function() {{
+        return new Promise((resolve, reject) => {{
+            let openRequest = indexedDB.open("{db_name}");
+            openRequest.onerror = () => resolve(null);
+            openRequest.onsuccess = event => {{
+                let db = event.target.result;
+                let tx = db.transaction("{store_name}", "readonly");
+                let store = tx.objectStore("{store_name}");
+                let getRequest = store.get({key});
+                getRequest.onerror = () => resolve(null);
+                getRequest.onsuccess = () => {{
+                    let data = getRequest.result;
+                    // If you stored an object with a .settings field
+                    resolve(data ? data.settings : null);
+                }};
+            }};
+        }});
+    }}())  /* immediately‐invoked because evaluate wants an expression */
+    """
+
+    # Evaluate the script, awaiting the promise, and return by value
+    result = await driver.evaluate(
+        script,
+        await_promise=True,
+        return_by_value=True
+    )
+
+    # result is now either your settings object (JSON‑compatible) or None
+    return result
+
+
+async def get_stop_execution_flag(driver):
+    """
+    Reads window.stopExecutionFlag from the page context.
+    Returns its value (could be True/False/any JS value) or None if not set.
+    """
+    script = """
+    (function() {
+        // Read the global flag; resolve to null if undefined
+        return window.stopExecutionFlag;
+    }())
+    """
+    # await the promise, return the JS value directly
+    flag_value = await driver.evaluate(
+        script,
+        await_promise=True,
+        return_by_value=True
+    )
+    return flag_value
+
+
+async def temp():
+    link = 'https://tickets.rolandgarros.com/en/'
+        
+    adspower = input('adspower api: ').strip()
+    adspower_id = input('adspower id: ').strip()
+    adspower_link = f"{adspower}/api/v1/browser/start?user_id={adspower_id}"
+
+    resp = requests.get(adspower_link).json()
+    if resp["code"] != 0:
+        print(resp["msg"])
+        print("please check ads_id")
+        sys.exit()
+    host, port = resp['data']['ws']['selenium'].split(':')
+    # print(adspower_link)
+
+    config = nodriver.Config(user_data_dir=None, headless=False, browser_executable_path=None, \
+    browser_args=None, sandbox=True, lang='en-US', host=host, port=int(port))
+    driver = await uc.Browser.create(config=config)
+
+    page = await driver.get(link)
+    input('continue?')
+    try:
+        ticketBotSettings = await get_indexeddb_data_(page, 'TicketBotDB', 'settings')
+
+        print(ticketBotSettings)
+        return json.loads(ticketBotSettings)
+    except Exception as e:
+        print(f"Error fetching data from IndexedDB: {e}")
+        ticketBotSettings = None
+
+
 if __name__ == '__main__':
 
-    input_date = ''
-    amount = 1
-    categories = []
-    restricted_time = []
-    while True:
-        input_amount = input('Введіть бажану кількість квитків: ')
-        try: 
-            amount = int(input_amount)
-            break
-        except: pass
-    court_name = input('Court name or press Enter: ').lower()
-    while True:
-        input_date = input('Введіть дату в наступному форматі: "TUE 30 MAY":\n')
-        if not input_date == '': break
-    restricted_time = [element.lower() for element in input('Введіть сесії матчів, які НЕ потрібно переглядати в наступному форматі: "night, day, end of day":\n').split(', ')]
-    categories = [category.lower() for category in input('Введіть категорії, які НЕ потрібно переглядати в наступному форматі: "category 3, category gold":\n').split(', ')]
+    # input_date = ''
+    # amount = 1
+    # categories = []
+    # restricted_time = []
+    # while True:
+    #     input_amount = input('Введіть бажану кількість квитків: ')
+    #     try: 
+    #         amount = int(input_amount)
+    #         break
+    #     except: pass
+    # court_name = input('Court name or press Enter: ').lower()
+    # while True:
+    #     input_date = input('Введіть дату в наступному форматі: "TUE 30 MAY":\n')
+    #     if not input_date == '': break
+    # restricted_time = [element.lower() for element in input('Введіть сесії матчів, які НЕ потрібно переглядати в наступному форматі: "night, day, end of day":\n').split(', ')]
+    # categories = [category.lower() for category in input('Введіть категорії, які НЕ потрібно переглядати в наступному форматі: "category 3, category gold":\n').split(', ')]
+    
+    
 
-    uc.loop().run_until_complete(main(input_date, categories, restricted_time, amount, court_name))
+    uc.loop().run_until_complete(main())

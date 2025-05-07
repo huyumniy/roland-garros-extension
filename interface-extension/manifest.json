@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Roland-Garros Configurations",
+  "version": "1.0",
+  "description": "Roland-Garros configurations",
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.rolandgarros.com/*"],
+      "js": ["src/content_scripts/content.js"],
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["html/htmlFileName.html", "styles/*", "fonts/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "permissions": [
+      "activeTab",
+      "webRequest",
+      "webRequestBlocking",
+      "declarativeNetRequest",
+      "scripting"
+    ],
+    "default_popup": "src/popup/popup.html"
+  },
+  "host_permissions": ["*://*/*"]
+}
