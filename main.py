@@ -228,7 +228,6 @@ async def main():
         driver = await uc.Browser.create(config=config)
 
         page = await driver.get(link)
-        input('continue?')
         
         while True:
             try:
@@ -384,56 +383,7 @@ async def get_stop_execution_flag(driver):
     return flag_value
 
 
-async def temp():
-    link = 'https://tickets.rolandgarros.com/en/'
-        
-    adspower = input('adspower api: ').strip()
-    adspower_id = input('adspower id: ').strip()
-    adspower_link = f"{adspower}/api/v1/browser/start?user_id={adspower_id}"
-
-    resp = requests.get(adspower_link).json()
-    if resp["code"] != 0:
-        print(resp["msg"])
-        print("please check ads_id")
-        sys.exit()
-    host, port = resp['data']['ws']['selenium'].split(':')
-    # print(adspower_link)
-
-    config = nodriver.Config(user_data_dir=None, headless=False, browser_executable_path=None, \
-    browser_args=None, sandbox=True, lang='en-US', host=host, port=int(port))
-    driver = await uc.Browser.create(config=config)
-
-    page = await driver.get(link)
-    input('continue?')
-    try:
-        ticketBotSettings = await get_indexeddb_data_(page, 'TicketBotDB', 'settings')
-
-        print(ticketBotSettings)
-        return json.loads(ticketBotSettings)
-    except Exception as e:
-        print(f"Error fetching data from IndexedDB: {e}")
-        ticketBotSettings = None
-
 
 if __name__ == '__main__':
-
-    # input_date = ''
-    # amount = 1
-    # categories = []
-    # restricted_time = []
-    # while True:
-    #     input_amount = input('Введіть бажану кількість квитків: ')
-    #     try: 
-    #         amount = int(input_amount)
-    #         break
-    #     except: pass
-    # court_name = input('Court name or press Enter: ').lower()
-    # while True:
-    #     input_date = input('Введіть дату в наступному форматі: "TUE 30 MAY":\n')
-    #     if not input_date == '': break
-    # restricted_time = [element.lower() for element in input('Введіть сесії матчів, які НЕ потрібно переглядати в наступному форматі: "night, day, end of day":\n').split(', ')]
-    # categories = [category.lower() for category in input('Введіть категорії, які НЕ потрібно переглядати в наступному форматі: "category 3, category gold":\n').split(', ')]
-    
-    
 
     uc.loop().run_until_complete(main())
