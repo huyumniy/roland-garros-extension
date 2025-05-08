@@ -14,7 +14,7 @@ from colorama import init, Fore
 
 init(autoreset=True)
 
-async def get_court(page, restricted_time, desired_court=None):
+async def get_court(page, desired_time=None, desired_court=None):
     try:
         courts = await page.query_selector_all('div[class="collection-item-2 w-dyn-item"]')
         for court in courts:
@@ -25,7 +25,8 @@ async def get_court(page, restricted_time, desired_court=None):
             court_time = court_time_element.text.lower()
             if desired_court:
                 if court_text.lower() not in desired_court: continue
-            if court_time in restricted_time: continue
+            if desired_time:
+                if court_time not in desired_time: continue
             return {'court': court, 'court_name': court_text}
     except Exception as e:
         # print('get_court', e)
@@ -42,7 +43,7 @@ async def get_ticket(page, amount, categories=None):
                 category_element = await ticket.query_selector('h2 div')
                 category = category_element.text.lower()
                 if categories:
-                    if category in categories: continue
+                    if category not in categories: continue
                 await ticket.click()
                     # remaining = await custom_wait(page, 'div[class="tooltip-inner"]', timeout=5)
                     # print(remaining.text)
@@ -323,7 +324,7 @@ async def main(browserId, browsersAmount, proxyList=None, adspower=None, adspowe
                 ticketBotSettings = await get_indexeddb_data(page, 'TicketBotDB', 'settings')
                 input_date = ticketBotSettings.get('date')
                 categories = ticketBotSettings.get('categories')
-                restricted_time = ticketBotSettings.get('sessions')
+                desired_time = ticketBotSettings.get('sessions')
                 amount = int(ticketBotSettings.get('amount')) if ticketBotSettings else None
                 desired_court = ticketBotSettings.get('courts')
                 stopExecutionFlag = ticketBotSettings.get('stopExecutionFlag')
@@ -359,7 +360,7 @@ async def main(browserId, browsersAmount, proxyList=None, adspower=None, adspowe
                         except Exception as e:
                             print(e)
                             continue
-                        court = await get_court(page, restricted_time, desired_court)
+                        court = await get_court(page, desired_time, desired_court)
                         if court:
 
                             print(court['court_name'])
