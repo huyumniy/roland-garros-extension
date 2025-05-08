@@ -94,7 +94,7 @@ window.onload = () => {
     </div>
   </div>`,
     __settingsCSS: `.tickets {
-      font-family: 'Calibri';
+      font-family: "Gill Sans", sans-serif;
     }
 
     .tickets_popup_wrapper {
@@ -218,7 +218,6 @@ window.onload = () => {
       border-radius: 4px;
       border: 1px solid #999;
       font-size: 16px;
-      font-family: 'Calibri';
       outline: none;
     }
 
@@ -234,7 +233,6 @@ window.onload = () => {
       padding: 5px 15px;
       border: 1px solid #aaa;
       border-radius: 4px;
-      font-family: 'Calibri';
       font-size: 16px;
       cursor: pointer;
     }
@@ -276,8 +274,6 @@ window.onload = () => {
 
     init: function () {
       console.log("in init");
-
-      document.body.innerHTML += UI.__settingsHTML;
 
       let style = document.createElement("style");
       style.innerText = UI.__settingsCSS;
@@ -321,11 +317,6 @@ window.onload = () => {
         );
 
         for (let date of dates) {
-          console.log(
-            date.getAttribute("data-value"),
-            settings.date,
-            date.getAttribute("data-value") == settings.date
-          );
           if (date.getAttribute("data-value") == settings.date) {
             date.classList.add("tickets_selector_selected");
             break;
@@ -421,8 +412,12 @@ window.onload = () => {
 
     createButton: function (text, func) {
       var btn = document.createElement("a");
-      btn.className = "right button button-small button-blue";
+      btn.className = "rtc-reset-css tc-privacy-button";
+      btn.style.fontFamily = "sans-serif";
       btn.innerHTML = text;
+      btn.style.background = "#cc4e0e";
+      btn.style.padding = "5px 10px";
+      btn.style.color = "#fff";
       btn.style.position = "fixed";
       btn.style.right = "15px";
       btn.style.bottom = "15px";
@@ -440,7 +435,8 @@ window.onload = () => {
   };
 
   function loadSettings() {
-    const transaction = db.transaction("settings", "readonly");
+    console.log(db);
+    const transaction = db.transaction("settings", "readwrite");
     const store = transaction.objectStore("settings");
     const getRequest = store.get(1);
 
@@ -530,12 +526,12 @@ window.onload = () => {
 
   function init() {
     // Open IndexedDB and load stored settings if available
-    const request = indexedDB.open("TicketBotDB", 1);
+    const request = indexedDB.open("TicketBotDB", 2);
 
     request.onupgradeneeded = function (event) {
       db = event.target.result;
       if (!db.objectStoreNames.contains("settings")) {
-        db.createObjectStore("settings", { keyPath: "id" });
+        db.createObjectStore("settings", { keyPath: "id"});
       }
     };
 
@@ -550,11 +546,4 @@ window.onload = () => {
   }
 
   init();
-
-  function httpGet(theUrl) {
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.open("GET", theUrl, false); // false for synchronous request
-    xmlHttp.send(null);
-    return xmlHttp.responseText;
-  }
 };

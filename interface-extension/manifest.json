@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Roland-Garros Configurations",
   "version": "1.0",
-  "description": "Roland-Garros configurations",
+  "description": "Roland-Garros Configurations",
 
   "content_scripts": [
     {

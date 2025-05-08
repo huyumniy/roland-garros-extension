@@ -4,3 +4,8 @@ Include
 Scripts
 pyvenv.cfg
 tests
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pdb
