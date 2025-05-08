@@ -1,6 +1,6 @@
 @echo off
 
-set "project_dir=..\roland-garros-bot-main"
+set "project_dir=..\roland-garros-bot-v1.1"
 set "venv_dir=%project_dir%"
 
 rem Create virtual environment
