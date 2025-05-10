@@ -101,22 +101,6 @@ async def custom_wait_elements(page, selector, timeout=10):
     return False
 
 
-async def check_seat_recursively(page, seat_id, direction, required_seats):
-    count = 0
-    while count < required_seats-1:
-        seat = await check_for_element(page, f'polygon[id="{seat_id}"]')
-        if seat and seat.attrs['class_'] == 'polygon':
-            await seat.click()
-            await get_stadion_ticket(page)
-            count += 1
-            if count >= required_seats:
-                return True
-        else:
-            break
-        seat_id += direction
-    return False
-
-
 async def configure_proxy(tab, proxyList):
     try:
         await tab.get('chrome://extensions/')
@@ -252,10 +236,11 @@ async def get_seat(page, amount):
                         seat = await check_for_element(page, f'polygon[class="polygon"][id="{seat_id}"]', debug=True)
                         if not seat: break
                         await seat.mouse_move()
-                        time.sleep(1)
+                        time.sleep(.2)
                         await seat.mouse_click()
-                        time.sleep(1)
-                        await get_stadion_ticket(page)
+                        add_button = await custom_wait(page, "a[class='bt-main orange-aa w-inline-block']", timeout=3)
+                        if add_button: add_button.click()
+                        # await get_stadion_ticket(page)
                         print('after click')
 
                 if await custom_wait(page, 'div[class="ConfirmationSelectionPanel"]', timeout=5):
