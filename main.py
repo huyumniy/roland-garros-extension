@@ -239,7 +239,7 @@ async def get_seat(page, amount):
                         time.sleep(.2)
                         await seat.mouse_click()
                         add_button = await custom_wait(page, "a[class='bt-main orange-aa w-inline-block']", timeout=3)
-                        if add_button: add_button.click()
+                        if add_button: await add_button.click()
                         # await get_stadion_ticket(page)
                         print('after click')
 
