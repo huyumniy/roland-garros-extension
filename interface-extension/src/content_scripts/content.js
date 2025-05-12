@@ -10,6 +10,7 @@ window.onload = () => {
     timesToBrowserTabReload: 200,
     secondsToRestartIfNoTicketsFound: 10,
     stopExecutionFlag: true,
+    advancedSettings: []
   };
 
   let UI = {
@@ -91,7 +92,7 @@ window.onload = () => {
       <br>
 
       <h2 class="tickets tickets_h2">Посилання на таблицю:</h2>
-      <input type="text" placeholder="https://docs.google.com/spreadsheets/d/1TFE2R..." name="settings"class="tickets_input">
+      <input type="text" placeholder="https://docs.google.com/spreadsheets/d/1TFE2R..." name="settings" class="tickets_input">
 
       <hr class="tickets tickets_hr">
 
@@ -227,6 +228,7 @@ window.onload = () => {
       border: 1px solid #999;
       font-size: 16px;
       outline: none;
+      width: 100%;
     }
 
     .tickets_input:focus {
@@ -374,12 +376,12 @@ window.onload = () => {
 
       // GOOGLE SHEETS
       document.querySelector(
-        'body > .tickets_popup_wrapper input[name="settings"]'
+        'body .tickets_popup_wrapper input[name="settings"]'
       ).value = settings.googleSheetsSettings
         ? settings.googleSheetsSettings
         : "";
 
-      if (settings.googleSheetsSettings) {
+      if (settings.googleSheetsSettings !== "") {
         tickets.forEach((tempTicket) =>
           tempTicket.classList.remove("tickets_selector_selected")
         );
@@ -487,7 +489,7 @@ window.onload = () => {
   }
 
   /* Database logic */
-  function updateSettings() {
+  async function updateSettings() {
     const amount = parseInt(
       document
         .querySelector(".tickets_select > .tickets_selector_selected")
@@ -495,9 +497,9 @@ window.onload = () => {
     );
     settings.amount = amount !== "" ? amount : null;
     const googleSheetsSettings = document.querySelector(
-      'body > .tickets_popup_wrapper input[name="settings"]'
+      'body .tickets_popup_wrapper input[name="settings"]'
     ).value;
-    const parentSelector = "body > div.tickets.tickets_popup_wrapper";
+    const parentSelector = "body .tickets.tickets_popup_wrapper";
 
     const date = document
       .querySelector(".date_select > .tickets_selector_selected")
@@ -532,6 +534,13 @@ window.onload = () => {
     settings.categories = categories;
     settings.sessions = sessions;
     settings.courts = courts;
+
+    if (googleSheetsSettings) {
+      settings.advancedSettings = await receive_sheets_data_main(googleSheetsSettings);
+      console.log(settings.advancedSettings);
+    } else {
+      settings.advancedSettings = [];
+    }
 
     console.log(categories, sessions, courts, amount, date);
 
@@ -578,13 +587,21 @@ window.onload = () => {
       console.error("Error opening IndexedDB.");
     };
   }
-  async function receive_sheets_data_main() {
-    let SHEET_ID = "1hTGOnhHOszbPQf8YWsdqoR5m6EeDF0xs8pLPsabVXks";
+
+  async function updateGoogleSheetSettings() {
+    console.log("Updating Google Sheets settings...");
+    if (settings.googleSheetsSettings) {
+      settings.advancedSettings = await receive_sheets_data_main(settings.googleSheetsSettings);
+      console.log(settings.advancedSettings);
+    }
+  }
+
+  async function receive_sheets_data_main(SHEET_URL) {
+    let SHEET_ID = SHEET_URL.split("/d/")[1].split("/")[0];
+    // let SHEET_ID = "1hTGOnhHOszbPQf8YWsdqoR5m6EeDF0xs8pLPsabVXks";
     let SHEET_TITLE = "main";
     let SHEET_RANGE = "A2:H";
     let FULL_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${SHEET_TITLE}&range=${SHEET_RANGE}`;
-
-    let dates = [];
 
     try {
       const text = await (await fetch(FULL_URL)).text();
@@ -594,7 +611,7 @@ window.onload = () => {
 
       const result = rows.map(({ c }) => ({
         date: c[0]?.v,
-        courts: c[1]?.v.split(", "),
+        courts: c[1]?.v,
         categories: [
           { cat3: c[2]?.v },
           { cat2: c[3]?.v },
@@ -602,8 +619,8 @@ window.onload = () => {
           { gold: c[5]?.v },
           { box: c[6]?.v },
         ],
-      }));
-      console.log(result);
+      })).filter((item) => item.date);
+      
       return result;
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -611,6 +628,11 @@ window.onload = () => {
     }
   }
 
-  // init();
-  (async () => receive_sheets_data_main())();
+  init();
+
+  setInterval(() => {
+    updateGoogleSheetSettings().catch(console.error);
+    console.log("Updating settings...");
+  }, 60_000);
+  // (async () => receive_sheets_data_main())();
 };
