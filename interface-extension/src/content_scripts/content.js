@@ -6,6 +6,7 @@ window.onload = () => {
     categories: [],
     sessions: [],
     courts: [],
+    googleSheetsSettings: false,
     timesToBrowserTabReload: 200,
     secondsToRestartIfNoTicketsFound: 10,
     stopExecutionFlag: true,
@@ -86,6 +87,13 @@ window.onload = () => {
         <div class="tickets selector" data-value="Court Suzanne-Lenglen">Court Suzanne-Lenglen</div>
         <div class="tickets selector" data-value="Court Simonne-Mathieu">Court Simonne-Mathieu</div>
       </div>
+
+      <br>
+
+      <h2 class="tickets tickets_h2">Посилання на таблицю:</h2>
+      <input type="text" placeholder="https://docs.google.com/spreadsheets/d/1TFE2R..." name="settings"class="tickets_input">
+
+      <hr class="tickets tickets_hr">
 
       <br><br>
 
@@ -287,24 +295,32 @@ window.onload = () => {
       container.innerHTML = UI.__settingsHTML;
 
       document.body.appendChild(container);
+      let categories = document.querySelectorAll(".selector");
+      let tickets = document.querySelectorAll(
+        ".tickets_select > .tickets_selector"
+      );
+      let dates = document.querySelectorAll(".date_select > .tickets_selector");
+      let selectors = document.getElementsByClassName("tickets_selector");
 
+      // AMOUNT
       if (settings.amount) {
-        let tickets = document.querySelectorAll(
-          ".tickets_select > .tickets_selector"
-        );
-
-        // Remove the selected class from all tickets first
         tickets.forEach((tempTicket) =>
           tempTicket.classList.remove("tickets_selector_selected")
         );
 
-        // Loop through tickets and add the class if it matches the amount
         for (let ticket of tickets) {
           if (ticket.getAttribute("data-value") == settings.amount) {
             ticket.classList.add("tickets_selector_selected");
-            break; // Exit the loop once we find and modify the correct ticket
+            break;
           }
         }
+      }
+
+      // DATES
+      for (var i = 0; i < dates.length; i++) {
+        dates[i].onclick = function () {
+          UI.select(this);
+        };
       }
 
       if (settings.date) {
@@ -324,29 +340,7 @@ window.onload = () => {
         }
       }
 
-      let cancel_button = document.getElementById("tickets_cancel");
-      cancel_button.onclick = UI.closePopup;
-
-      let start_button = document.getElementById("tickets_start");
-      start_button.onclick = updateSettings;
-
-      var selectors = document.getElementsByClassName("tickets_selector");
-
-      for (var i = 0; i < selectors.length; i++) {
-        selectors[i].onclick = function () {
-          UI.select(this);
-        };
-      }
-
-      var dates = document.getElementsByClassName("tickets_selector");
-
-      for (var i = 0; i < dates.length; i++) {
-        dates[i].onclick = function () {
-          UI.select(this);
-        };
-      }
-
-      var categories = document.querySelectorAll(".selector");
+      // CATEGORIES
 
       for (var i = 0; i < categories.length; i++) {
         categories[i].onclick = function () {
@@ -355,7 +349,6 @@ window.onload = () => {
       }
 
       if (settings.categories) {
-        // Remove the selected class from all tickets first
         categories.forEach((tempCategory) =>
           tempCategory.classList.remove("selector_selected")
         );
@@ -370,6 +363,42 @@ window.onload = () => {
           }
         }
       }
+
+      // SELECTORS
+
+      for (var i = 0; i < selectors.length; i++) {
+        selectors[i].onclick = function () {
+          UI.select(this);
+        };
+      }
+
+      // GOOGLE SHEETS
+      document.querySelector(
+        'body > .tickets_popup_wrapper input[name="settings"]'
+      ).value = settings.googleSheetsSettings
+        ? settings.googleSheetsSettings
+        : "";
+
+      if (settings.googleSheetsSettings) {
+        tickets.forEach((tempTicket) =>
+          tempTicket.classList.remove("tickets_selector_selected")
+        );
+        categories.forEach((tempCategory) =>
+          tempCategory.classList.remove("selector_selected")
+        );
+        dates.forEach((tempDate) =>
+          tempDate.classList.remove("tickets_selector_selected")
+        );
+      }
+
+      console.log(settings.googleSheetsSettings);
+
+      // MAIN BUTTONS
+      let cancel_button = document.getElementById("tickets_cancel");
+      cancel_button.onclick = UI.closePopup;
+
+      let start_button = document.getElementById("tickets_start");
+      start_button.onclick = updateSettings;
 
       let wrapper = document.getElementsByClassName("tickets_popup_wrapper")[0];
 
@@ -465,6 +494,9 @@ window.onload = () => {
         .getAttribute("data-value")
     );
     settings.amount = amount !== "" ? amount : null;
+    const googleSheetsSettings = document.querySelector(
+      'body > .tickets_popup_wrapper input[name="settings"]'
+    ).value;
     const parentSelector = "body > div.tickets.tickets_popup_wrapper";
 
     const date = document
@@ -494,6 +526,8 @@ window.onload = () => {
     ).map((category) => {
       return category.getAttribute("data-value");
     });
+
+    settings.googleSheetsSettings = googleSheetsSettings;
     settings.date = date;
     settings.categories = categories;
     settings.sessions = sessions;
@@ -531,7 +565,7 @@ window.onload = () => {
     request.onupgradeneeded = function (event) {
       db = event.target.result;
       if (!db.objectStoreNames.contains("settings")) {
-        db.createObjectStore("settings", { keyPath: "id"});
+        db.createObjectStore("settings", { keyPath: "id" });
       }
     };
 
@@ -544,6 +578,39 @@ window.onload = () => {
       console.error("Error opening IndexedDB.");
     };
   }
+  async function receive_sheets_data_main() {
+    let SHEET_ID = "1hTGOnhHOszbPQf8YWsdqoR5m6EeDF0xs8pLPsabVXks";
+    let SHEET_TITLE = "main";
+    let SHEET_RANGE = "A2:H";
+    let FULL_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${SHEET_TITLE}&range=${SHEET_RANGE}`;
 
-  init();
+    let dates = [];
+
+    try {
+      const text = await (await fetch(FULL_URL)).text();
+      const {
+        table: { rows },
+      } = JSON.parse(text.slice(47, -2));
+
+      const result = rows.map(({ c }) => ({
+        date: c[0]?.v,
+        courts: c[1]?.v.split(", "),
+        categories: [
+          { cat3: c[2]?.v },
+          { cat2: c[3]?.v },
+          { cat1: c[4]?.v },
+          { gold: c[5]?.v },
+          { box: c[6]?.v },
+        ],
+      }));
+      console.log(result);
+      return result;
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      return null;
+    }
+  }
+
+  // init();
+  (async () => receive_sheets_data_main())();
 };
