@@ -10,7 +10,49 @@ window.onload = () => {
     timesToBrowserTabReload: 200,
     secondsToRestartIfNoTicketsFound: 10,
     stopExecutionFlag: true,
-    advancedSettings: []
+    advancedSettings: [],
+  };
+
+  const dateMapping = {
+    // May 19–31
+    19: "MON 19 MAY",
+    20: "TUE 20 MAY",
+    21: "WED 21 MAY",
+    22: "THU 22 MAY",
+    23: "FRI 23 MAY",
+    24: "SAT 24 MAY",
+    25: "SUN 25 MAY",
+    26: "MON 26 MAY",
+    27: "TUE 27 MAY",
+    28: "WED 28 MAY",
+    29: "THU 29 MAY",
+    30: "FRI 30 MAY",
+    31: "SAT 31 MAY",
+
+    // June 1–8
+    1: "SUN 1 JUNE",
+    2: "MON 2 JUNE",
+    3: "TUE 3 JUNE",
+    4: "WED 4 JUNE",
+    5: "THU 5 JUNE",
+    6: "FRI 6 JUNE",
+    7: "SAT 7 JUNE",
+    8: "SUN 8 JUNE",
+  };
+
+  const sessionMapping = {
+    PC: "day",
+    PCN: "night",
+    SL: "day",
+    SM: "day",
+    O: "day",
+  };
+
+  const courtMapping = {
+    PC: "Court Philippe-Chatrier",
+    PCN: "Court Philippe-Chatrier",
+    SL: "Court Suzanne-Lenglen",
+    SM: "Court Simonne-Mathieu",
   };
 
   let UI = {
@@ -536,7 +578,9 @@ window.onload = () => {
     settings.courts = courts;
 
     if (googleSheetsSettings) {
-      settings.advancedSettings = await receive_sheets_data_main(googleSheetsSettings);
+      settings.advancedSettings = await receive_sheets_data_main(
+        googleSheetsSettings
+      );
       console.log(settings.advancedSettings);
     } else {
       settings.advancedSettings = [];
@@ -591,7 +635,9 @@ window.onload = () => {
   async function updateGoogleSheetSettings() {
     console.log("Updating Google Sheets settings...");
     if (settings.googleSheetsSettings) {
-      settings.advancedSettings = await receive_sheets_data_main(settings.googleSheetsSettings);
+      settings.advancedSettings = await receive_sheets_data_main(
+        settings.googleSheetsSettings
+      );
       console.log(settings.advancedSettings);
     }
   }
@@ -609,18 +655,21 @@ window.onload = () => {
         table: { rows },
       } = JSON.parse(text.slice(47, -2));
 
-      const result = rows.map(({ c }) => ({
-        date: c[0]?.v,
-        courts: c[1]?.v,
-        categories: [
-          { cat3: c[2]?.v },
-          { cat2: c[3]?.v },
-          { cat1: c[4]?.v },
-          { gold: c[5]?.v },
-          { box: c[6]?.v },
-        ],
-      })).filter((item) => item.date);
-      
+      const result = rows
+        .map(({ c }) => ({
+          date: dateMapping[isNaN(c[0]?.v) ? parseInt(c[0]?.v) : c[0]?.v],
+          court: courtMapping[c[1]?.v],
+          session: sessionMapping[c[1]?.v],
+          categories: [
+            { "category 3": c[2]?.v },
+            { "category 2": c[3]?.v },
+            { "category 1": c[4]?.v },
+            { "category gold": c[5]?.v },
+            { box: c[6]?.v },
+          ],
+        }))
+        .filter((item) => item.date);
+
       return result;
     } catch (error) {
       console.error("Error fetching data:", error);

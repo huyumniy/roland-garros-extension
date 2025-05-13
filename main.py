@@ -14,8 +14,9 @@ from colorama import init, Fore
 
 init(autoreset=True)
 
-async def get_court(page, desired_time=None, desired_court=None):
+async def get_court(page, desired_time=None, desired_courts=None):
     try:
+        print('in get court', desired_time, desired_courts)
         courts = await page.query_selector_all('div[class="collection-item-2 w-dyn-item"]')
         for court in courts:
             court_data = await court.query_selector('.block-lect.courts.mb-20')
@@ -23,17 +24,17 @@ async def get_court(page, desired_time=None, desired_court=None):
             court_text = court_text_element.text
             court_time_element = await court.query_selector('.text-block-65')
             court_time = court_time_element.text.lower()
-            if desired_court:
-                if court_text.lower() not in desired_court: continue
+            if desired_courts:
+                if court_text.lower() not in desired_courts: continue
             if desired_time:
                 if court_time not in desired_time: continue
-            return {'court': court, 'court_name': court_text}
+            return {'court': court, 'court_name': court_text, 'court_time': court_time}
     except Exception as e:
-        # print('get_court', e)
+        print('get_court', e)
         return False
 
 
-async def get_ticket(page, amount, categories=None):
+async def get_ticket(page, categories=None):
     try:
         if await custom_wait(page, "div[class='category dropdown-np w-dropdown-toggle']", timeout=3):
             tickets = await custom_wait_elements(page, "div[class='category dropdown-np w-dropdown-toggle']", timeout=1)
@@ -45,10 +46,9 @@ async def get_ticket(page, amount, categories=None):
                 if categories:
                     if category not in categories: continue
                 await ticket.click()
-                    # remaining = await custom_wait(page, 'div[class="tooltip-inner"]', timeout=5)
-                    # print(remaining.text)
+                
 
-                return True
+                return category
     except Exception as e: 
         print('get_ticket', e)
         return False
@@ -266,7 +266,9 @@ async def check_for_element(page, selector, click=False, debug=False):
         return False
 
 
-async def main(browserId, browsersAmount, proxyList=None, adspower=None, adspower_id=None):
+async def main(browser_id, browsers_amount, proxy_list=None,
+    adspower=None, adspower_id=None, google_sheets_link=None
+    ):
     try:
         link = 'https://tickets.rolandgarros.com/en/'
 
@@ -294,43 +296,66 @@ async def main(browserId, browsersAmount, proxyList=None, adspower=None, adspowe
             config.add_extension(extension_path="./BPProxySwitcher.crx")
             config.add_extension(extension_path=interface_extension_path)
             driver = await uc.Browser.create(config=config)
-            if proxyList:
+            if proxy_list:
                 await driver.get(link)
                 tab = driver.main_tab
-                await configure_proxy(tab, proxyList)
+                await configure_proxy(tab, proxy_list)
 
         page = await driver.get(link)
         if adspower_id:
             print(Fore.GREEN + f"Browser {adspower_id}: Successfully started!\n")
         else:
-            print(Fore.GREEN + f"Browser {browserId}: Successfully started!\n")
+            print(Fore.GREEN + f"Browser {browser_id}: Successfully started!\n")
         while True:
             try:
-                ticketBotSettings = await get_indexeddb_data(page, 'TicketBotDB', 'settings')
-                input_date = ticketBotSettings.get('date')
-                categories = ticketBotSettings.get('categories')
-                desired_time = ticketBotSettings.get('sessions')
-                amount = int(ticketBotSettings.get('amount')) if ticketBotSettings else None
-                desired_court = ticketBotSettings.get('courts')
-                stopExecutionFlag = ticketBotSettings.get('stopExecutionFlag')
-                if stopExecutionFlag:
+                ticket_bot_settings = await get_indexeddb_data(page, 'TicketBotDB', 'settings')
+                input_date = ticket_bot_settings.get('date')
+                categories = ticket_bot_settings.get('categories')
+                input_time = ticket_bot_settings.get('sessions')
+                amount = int(ticket_bot_settings.get('amount')) if ticket_bot_settings else None
+                desired_courts = ticket_bot_settings.get('courts')
+                stop_execution_flag = ticket_bot_settings.get('stopExecutionFlag')
+                advanced_settings = ticket_bot_settings.get('advancedSettings')
+                all_desired_dates = []
+
+                if stop_execution_flag:
                     time.sleep(5)
                     continue
             except Exception as e:
                 print(f"Error fetching data from IndexedDB: {e}")
-                ticketBotSettings = None
+                ticket_bot_settings = None
                 time.sleep(60)
                 continue
             try:
                 if await check_for_element(page, '.stadium-image', debug=True): await check_for_element(page, 'div.nav-web > div > div > button', click=True, debug=True)
                 if await check_for_element(page, 'div[class="EmptyCart container-main py-40"]', debug=True): await check_for_element(page, 'div.nav-web > div > div > button', click=True, debug=True)
                 dates = await page.query_selector_all('.cal-card.lb1.w-inline-block.w-tab-link > div')
+
+                random_advanced_setting = random.choice(advanced_settings) if advanced_settings else None
+                desired_date = random_advanced_setting.get('date') if advanced_settings else input_date
+                # desired_time = random_advanced_setting.get('session') if advanced_settings else input_time
+
                 date_for_click = ''
                 for date in dates:
-                    if date.text == input_date:
+                    if date.text == desired_date:
                         date_for_click = date
+                # if advanced_settings:
+                #     courts_to_date = []
+                #     for advanced_setting in advanced_settings:
+                #         if advanced_setting.get('date') == desired_date:
+                #             courts_to_date.append(advanced_setting.get('court'))
+
+                #     time_to_date = []
+                #     for advanced_setting in advanced_settings:
+                #         if advanced_setting.get('session') == desired_time and advanced_setting.get('date') == desired_date:
+                #             time_to_date.append(advanced_setting.get('session'))
+
+                # print(courts_to_date, 'courts_to_date')
+                # print(time_to_date, 'time_to_date')
                 await date_for_click.scroll_into_view()
                 await date_for_click.click()
+
+
                 attrs = ['tab-offres w-inline-block w-tab-link w--current unavailable-offers', 'tab-offres w-inline-block w-tab-link unavailable-offers']
                 time.sleep(1)
                 left_menu = await page.query_selector_all('.tab-offres.w-inline-block.w-tab-link')
@@ -345,7 +370,38 @@ async def main(browserId, browsersAmount, proxyList=None, adspower=None, adspowe
                         except Exception as e:
                             print(e)
                             continue
-                        court = await get_court(page, desired_time, desired_court)
+
+                        if advanced_settings:
+                            date_filtered_settings = [
+                                s for s in advanced_settings 
+                                if desired_date == s.get("date")
+                            ]
+
+                            while date_filtered_settings:
+                                # pick-and-remove in one step
+                                idx = random.randrange(len(date_filtered_settings))
+                                setting = date_filtered_settings.pop(idx)
+                                print(setting, 'setting')
+                                court = await get_court(
+                                    page,
+                                    [setting.get("session")],
+                                    [setting.get("court")],
+                                )
+                                print(court, 'court')
+                                if not court:
+                                    # setting already removed, retry
+                                    continue
+
+                                # ─── you got a valid court ───
+                                break
+                        else:
+                            court = await get_court(page, 
+                            input_time,
+                            desired_courts
+                            )
+
+                        print(court)
+                        
                         if court:
 
                             print(court['court_name'])
@@ -363,9 +419,24 @@ async def main(browserId, browsersAmount, proxyList=None, adspower=None, adspowe
                                 while True:  
                                     if not await check_for_element(page, '.stadium-image', debug=True): break
                                     try:
-                                        if await get_ticket(page, categories):
+                                        desired_categories = []
+                                        result_categories = desired_categories if advanced_settings else categories
+                                        if advanced_settings:
+                                            for category_item in random_advanced_setting.get('categories'):
+                                                for category, value in category_item.items():
+                                                    desired_categories.append(category) if value and value >= 0 else None
+                                                
+                                        found_category = await get_ticket(page, result_categories)
+                                        desired_category_amount = {}
+                                        result_amount = desired_category_amount if advanced_settings else amount
+                                        if advanced_settings:
+                                            for category_item in random_advanced_setting.get('categories'):
+                                                for category, value in category_item.items():
+                                                    if category == found_category: desired_category_amount = category_item
+
+                                        if found_category:
                                             if await get_polygon(page):
-                                                if await get_seat(page, amount):
+                                                if await get_seat(page, result_amount):
                                                     pass
                                         back_button = await page.query_selector('div.nav-web > div > div > button')
                                         await back_button.click()
@@ -384,7 +455,7 @@ async def main(browserId, browsersAmount, proxyList=None, adspower=None, adspowe
 
 
 @eel.expose
-def start_workers(browsersAmount, proxyInput, adspowerApi, adspowerIds):
+def start_workers(browsersAmount, proxyInput, adspowerApi, adspowerIds, googleSheetsLink=None):
     threads = []
     print('start_workers', browsersAmount, proxyInput, adspowerApi, adspowerIds)
 
@@ -411,7 +482,7 @@ def start_workers(browsersAmount, proxyInput, adspowerApi, adspowerIds):
             thread = threading.Thread(
                 target=lambda idx=i, tot=total:
                     uc.loop().run_until_complete(
-                        main(idx, tot, proxyInput)
+                        main(idx, tot, proxyInput, None, None, googleSheetsLink)
                     )
             )
             threads.append(thread)
