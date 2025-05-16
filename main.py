@@ -16,11 +16,13 @@ from colorama import init, Fore
 import speech_recognition
 import pydub
 import textwrap
-
-
+from datetime import datetime, timedelta
 from filtration import filter_seats
 from utils.sheetsApi import get_data_from_google_sheets
 
+
+TIME_FROM_START = datetime.now()
+TIME_TO_WAIT = TIME_FROM_START + timedelta(minutes=5)
 pydub.AudioSegment.converter = os.path.join(os.getcwd(), "ffmpeg", "bin", "ffmpeg.exe")
 print(os.path.join(os.getcwd(), "ffmpeg", "bin", "ffmpeg.exe"))
 init(autoreset=True)
@@ -522,7 +524,7 @@ async def check_for_elements(page, selector, debug=False):
 async def main(browser_id, browsers_amount, proxy_list=None,
     adspower=None, adspower_id=None, google_sheets_data_link=None,
     google_sheets_accounts_link=None):
-    global accounts
+    global accounts, TIME_FROM_START, TIME_TO_WAIT
     try:
         link = 'https://tickets.rolandgarros.com/en/'
 
@@ -576,7 +578,8 @@ async def main(browser_id, browsers_amount, proxy_list=None,
                 browser_part = f"Browser: {adspower_id if adspower_id else browser_id}"
                 text = f"CAPTCHA"
                 message = "\n".join([user_part + " " + browser_part, text])
-                send_slack_message(message)
+                if datetime.now() > TIME_TO_WAIT:
+                    send_slack_message(message)
                 # print('trying to delete cookies')
                 # delete_cookies('datadome')
                 print(Fore.YELLOW + f"Browser {adspower_id if adspower_id else browser_id}: 403!\n")
