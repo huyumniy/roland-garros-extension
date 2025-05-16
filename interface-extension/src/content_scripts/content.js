@@ -485,7 +485,7 @@ window.onload = () => {
 
     createButton: function (text, func) {
       var btn = document.createElement("a");
-      btn.className = "rtc-reset-css tc-privacy-button";
+      btn.className = "integrated-settings-button";
       btn.style.fontFamily = "sans-serif";
       btn.innerHTML = text;
       btn.style.background = "#cc4e0e";
@@ -532,21 +532,27 @@ window.onload = () => {
 
   /* Database logic */
   async function updateSettings() {
-    const amount = parseInt(
-      document
-        .querySelector(".tickets_select > .tickets_selector_selected")
-        .getAttribute("data-value")
+    const amount_element = document.querySelector(
+      ".tickets_select > .tickets_selector_selected"
     );
+    let amount = "";
+    if (amount_element) {
+      amount = parseInt(amount_element.getAttribute("data-value"));
+    }
     settings.amount = amount !== "" ? amount : null;
     const googleSheetsSettings = document.querySelector(
       'body .tickets_popup_wrapper input[name="settings"]'
     ).value;
     const parentSelector = "body .tickets.tickets_popup_wrapper";
 
-    const date = document
-      .querySelector(".date_select > .tickets_selector_selected")
-      .getAttribute("data-value");
+    const date_element = document.querySelector(
+      ".date_select > .tickets_selector_selected"
+    );
 
+    let date = "";
+    if (date_element) {
+      date = date_element.getAttribute("data-value");
+    }
     const categories = Array.from(
       document.querySelectorAll(
         parentSelector + " .category_select > div.selector_selected"
@@ -656,19 +662,24 @@ window.onload = () => {
       } = JSON.parse(text.slice(47, -2));
 
       const result = rows
-        .map(({ c }) => ({
-          date: dateMapping[isNaN(c[0]?.v) ? parseInt(c[0]?.v) : c[0]?.v],
-          court: courtMapping[c[1]?.v],
-          session: sessionMapping[c[1]?.v],
-          categories: [
-            { "category 3": c[2]?.v },
-            { "category 2": c[3]?.v },
-            { "category 1": c[4]?.v },
-            { "category gold": c[5]?.v },
-            { box: c[6]?.v },
-          ],
-        }))
-        .filter((item) => item.date);
+        .map(({ c }) => {
+          const categories = [
+            ["category 3", c[2]?.v],
+            ["category 2", c[3]?.v],
+            ["category 1", c[4]?.v],
+            ["category gold", c[5]?.v],
+            ["box", c[6]?.v],
+          ]
+            .filter(([name, val]) => val != null && val !== "")
+            .map(([name, val]) => ({ [name]: val }));
+          return {
+            date: dateMapping[isNaN(c[0]?.v) ? parseInt(c[0]?.v) : c[0]?.v],
+            court: courtMapping[c[1]?.v],
+            session: sessionMapping[c[1]?.v],
+            categories,
+          };
+        })
+        .filter((item) => item.date && item.categories.length > 0);
 
       return result;
     } catch (error) {
@@ -681,7 +692,6 @@ window.onload = () => {
 
   setInterval(() => {
     updateGoogleSheetSettings().catch(console.error);
-    console.log("Updating settings...");
-  }, 60_000);
+  }, 5_000);
   // (async () => receive_sheets_data_main())();
 };

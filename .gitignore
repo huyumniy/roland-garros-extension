@@ -10,3 +10,7 @@ __pycache__
 *.pyd
 *.pdb
 temp.py
+slack-post/
+screens/
+temp.js
+temp.py
