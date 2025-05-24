@@ -1,31 +1,25 @@
 {
   "manifest_version": 3,
-  "name": "Roland-Garros Configurations",
-  "version": "1.0",
-  "description": "Roland-Garros Configurations",
-
+  "name": "Roland Garros Extension Bot",
+  "version": "1.0.0",
   "content_scripts": [
     {
       "matches": ["*://*.rolandgarros.com/*"],
-      "js": ["src/content_scripts/content.js"],
-      "all_frames": true
+      "js": ["dist/content-scripts/content.js"]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["html/htmlFileName.html", "styles/*", "fonts/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+       "src/content-scripts/ui/settings.html",
+       "src/content-scripts/ui/settings.css"
+      ],
+      "matches": ["<all_urls>"],
+      "use_dynamic_url": true
     }
   ],
+  "permissions": ["storage"],
   "action": {
-    "permissions": [
-      "activeTab",
-      "webRequest",
-      "webRequestBlocking",
-      "declarativeNetRequest",
-      "scripting"
-    ],
     "default_popup": "src/popup/popup.html"
-  },
-  "host_permissions": ["*://*/*"]
+  }
 }

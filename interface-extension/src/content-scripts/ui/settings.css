@@ -1,0 +1,165 @@
+.tickets {
+  font-family: "Gill Sans", sans-serif;
+}
+
+.tickets_popup_wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: auto;
+  z-index: 1000;
+  display: none;
+}
+
+.tickets_data {
+  display: block;
+}
+
+.tickets_data input {
+  margin-right: 5px;
+}
+
+.tickets_popup {
+  width: 500px;
+  padding: 15px;
+  box-sizing: border-box;
+  margin: 50px auto;
+  background: #fff;
+  border-radius: 4px;
+  position: relative;
+}
+
+.tickets_h1,
+.tickets_h2 {
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.tickets_h1 {
+  font-size: 30px;
+}
+
+.tickets_h2 {
+  font-size: 24px;
+}
+
+.tickets_select {
+  display: inline-block;
+}
+
+.tickets_selector {
+  margin: 3px 0;
+  padding: 5px 15px;
+  border: 1px solid #999;
+  display: inline-block;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #555;
+}
+
+.tickets_selector:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.tickets_selector_selected {
+  color: #000;
+  font-weight: bold;
+  border: 1px solid #2482f1;
+}
+
+.date_selector {
+  margin: 3px 0;
+  padding: 5px 15px;
+  border: 1px solid #999;
+  display: inline-block;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #555;
+}
+
+.date_selector:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.date_selector_selected {
+  color: #000;
+  font-weight: bold;
+  border: 1px solid #2482f1;
+}
+
+.selector {
+  margin: 3px 0;
+  padding: 5px 15px;
+  border: 1px solid #999;
+  display: inline-block;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #555;
+}
+
+.selector:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.selector_selected {
+  color: #000;
+  font-weight: bold;
+  border: 1px solid #2482f1;
+}
+
+.tickets_hr {
+  width: 50%;
+  border: 0;
+  height: 1px;
+  background: #aaa;
+  margin: 10px auto;
+}
+
+.tickets_input {
+  margin: 3px 0;
+  padding: 5px 15px;
+  border-radius: 4px;
+  border: 1px solid #999;
+  font-size: 16px;
+  outline: none;
+  width: 100%;
+}
+
+.tickets_input:focus {
+  border: 1px solid #2482f1;
+}
+
+.tickets_title {
+  margin-right: 10px;
+}
+
+.tickets_button {
+  padding: 5px 15px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.tickets_button_colored {
+  font-weight: bold;
+  background: #2482f1;
+  border: 1px solid #2482f1;
+  color: #fff;
+}
+
+.tickets_notice {
+  color: #555;
+}
+.settings-info {
+  position: fixed;
+  bottom: 15px;
+  right: 15px;
+  padding: 15px;
+  background: #2482f1;
+  color: #fff;
+  width: 200px;
+}
