@@ -19,3 +19,4 @@ interface-extension/node_modules/
 interface-extension/.vscode/
 interface-extension/src/.DS_Store
 package-lock.json
+proxyList.txt
