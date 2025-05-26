@@ -47,10 +47,10 @@ export const date = [
         minPrice: 110.0,
         imageUrl:
           "https://images.prismic.io/fft-billetterie/36a2e9a6-6752-48ed-84be-d870dbdc0ba3_20230603_RG_NG_25479_web.jpg?auto=compress,format",
-        sessionsDatesLabel: "Sunday 25 May",
+        sessionsDatesLabel: "Monday 26 May",
         sessions: [
           {
-            dateLongDescription: "Sunday 25 May",
+            dateLongDescription: "Monday 26 May",
             longDescription:
               '<p><u><span style="color: rgb(80, 80, 80)">Not before 8:15PM<br></span></u><span style="color: rgb(80, 80, 80)">1st round Ladies\' or Gentlemen\'s Singles<br>| 1 "Great" match</span></p>',
             court: "PC",

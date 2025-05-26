@@ -1,98 +1,125 @@
-import { settings } from "../utils/advancedSettings.mjs";
-import { dateToFullDateMapping, sessionMapping } from "../utils/mappings.mjs";
+import { settings } from "../utils/settings.mjs";
+import {
+  dateToFullDateMapping,
+  sessionMapping,
+  courtMapping,
+} from "../utils/mappings.mjs";
 import { date } from "../utils/date.mjs";
 
 async function main() {
-  const minPrice = 0;
-  const maxPrice = 110;
-
-  const filteredUniqueDates = filterByUniqueDates(settings.advancedSettings);
-  const randomFilteredUniqueDate =
-    filteredUniqueDates[Math.floor(Math.random() * filteredUniqueDates.length)];
-
-  const desiredDates = settings.date
-    ? [settings.date]
-    : filterByDate(settings.advancedSettings, randomFilteredUniqueDate.date);
-
-  const processDateData = await processDate(
-    settings,
-    desiredDates,
+  const { entries, sessions, courts, dateParts, minPrice, maxPrice } =
+    prepareFilterParams(settings);
+  const offers = filterDates({
+    entries,
+    sessions,
+    courts,
+    dateParts,
     minPrice,
-    maxPrice
-  );
-  if (!processDateData.length) {
-    console.log("No tickets found.");
-    // _countAndRun();
-    return;
-  }
-
-  // console.log(processDateData);s
-}
-
-async function processDate(settings, dates, minPrice, maxPrice) {
-  console.log("processDate");
-
-  if (!dates.length) {
-    return [];
-  }
-
-  // const dateResponse = await fetchData(
-  //   `https://tickets.rolandgarros.com/api/v2/en/ticket/calendar/offers-grouped-by-sorted-offer-type/${dateToFullDateMapping[dates[0].date]}`
-  // );
-  const dateResponse = date;
-  if (!dateResponse || dateResponse?.url) {
-    return [];
-  }
-
-  const offers = dateResponse
-    .filter(
-      (offer) =>
-        offer.offerType.offerType === "SINGLE_DAY" && offer.isOfferTypeAvailable
-    )
-    .map((offer) => {
-      return offer.offers;
-    });
-
-  
-
-  offers.filter(
-    (offer) => offer.isAvailable 
-    && dates.includes({'session': sessionMapping[offer.sessionTypes]})
-    && 
-  );
-
-  return offers;
-}
-
-// |------------------------------------|
-// |               Utils                |
-// |------------------------------------|
-
-/**
- * Filters an array of schedule objects so that only the first object
- * for each unique `date` remains.
- *
- * @param {Array<Object>} data – array of dates and its properties
- * @returns {Array<Object>} filtered list with unique only dates
- */
-function filterByUniqueDates(data) {
-  const seenDates = new Set();
-  return data.filter((item) => {
-    if (seenDates.has(item.date)) {
-      return false;
-    }
-    seenDates.add(item.date);
-    return true;
+    maxPrice,
   });
+
+  if (!offers.length) {
+    console.log("No tickets found.");
+  } else {
+    console.log(
+      offers,
+      settings.advancedSettings?.length ? "advanced offers" : "simple offers"
+    );
+  }
 }
 
 /**
- * @param {Array<Object>} data  – your full list of schedule objects
- * @param {string}        date  – the exact date label to filter by (e.g. "SUN 1 JUNE")
- * @returns {Array<Object>}     – all objects whose `date` equals the given string
+ * Prepares filtering parameters based on settings mode.
+ * For advancedSettings: picks a random date group and its entries.
+ * For simple mode: extracts datePart, sessions, and courts arrays.
  */
-function filterByDate(data, date) {
-  return data.filter((item) => item.date === date);
+function prepareFilterParams(settings) {
+  const minPrice = settings.minPrice ?? 0;
+  const maxPrice = settings.maxPrice ?? Infinity;
+
+  if (settings.advancedSettings?.length) {
+    const groups = settings.advancedSettings;
+    const uniqueDates = [...new Set(groups.map((d) => d.date))];
+    const randomDate =
+      uniqueDates[Math.floor(Math.random() * uniqueDates.length)];
+    const entries = groups.filter((d) => d.date === randomDate);
+    return {
+      entries,
+      sessions: [],
+      courts: [],
+      dateParts: [],
+      minPrice,
+      maxPrice,
+    };
+  }
+
+  const datePart = settings.date?.split(" ").slice(1).join(" ") || null;
+  return {
+    entries: [],
+    sessions: settings.sessions || [],
+    courts: settings.courts || [],
+    dateParts: datePart ? [datePart] : [],
+    minPrice,
+    maxPrice,
+  };
+}
+
+/**
+ * Generic offer filtering:
+ * - SINGLE_DAY & available overall
+ * - isAvailable && price range
+ * - optional advanced entries (session+court+date)
+ * - optional simple sessions/courts + dateParts
+ */
+function filterDates({
+  entries,
+  sessions = [],
+  courts = [],
+  dateParts = [],
+  minPrice,
+  maxPrice,
+}) {
+  return date
+    .filter(
+      (e) => e.offerType.offerType === "SINGLE_DAY" && e.isOfferTypeAvailable
+    )
+    .flatMap((e) => e.offers)
+    .filter((offer) => {
+      if (!offer.isAvailable) return false;
+      if (offer.minPrice < minPrice || offer.minPrice > maxPrice) return false;
+
+      const mappedSession = sessionMapping[offer.sessionTypes];
+      const mappedCourt = courtMapping[offer.court];
+
+      // advancedSettings mode:
+
+      if (Array.isArray(entries) && entries.length) {
+        return entries.some((d) => {
+          if (d.session !== mappedSession || d.court !== mappedCourt)
+            return false;
+          const part = d.date.split(" ").slice(1).join(" ");
+          return hasDateMatch(offer, part);
+        });
+      }
+
+      // simple mode:
+      if (sessions.length && !sessions.includes(mappedSession)) return false;
+      if (courts.length && !courts.includes(mappedCourt)) return false;
+      if (dateParts.length && !dateParts.some((p) => hasDateMatch(offer, p)))
+        return false;
+
+      return true;
+    });
+}
+
+/**
+ * Checks if offer has any session matching "DD MONTH" string
+ */
+function hasDateMatch(offer, datePart) {
+  return offer.sessions.some((s) => {
+    const [, dayNum, monthWord] = s.dateLongDescription.split(" ");
+    return `${dayNum} ${monthWord.toUpperCase()}` === datePart;
+  });
 }
 
 main();

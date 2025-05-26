@@ -20,3 +20,4 @@ interface-extension/.vscode/
 interface-extension/src/.DS_Store
 package-lock.json
 proxyList.txt
+api.txt
