@@ -3,7 +3,7 @@ export const fetchData = async (url, options = {}) => {
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "x-queueit-ajaxpageurl": window.location.href,
+        "x-queueit-ajaxpageurl": encodeURIComponent(window.location.href),
         ...options.headers,
       },
     });
@@ -23,8 +23,8 @@ export const postData = async (url, data, options = {}) => {
     const response = await fetch(url, {
       method: "POST",
       headers: {
+        "x-queueit-ajaxpageurl": encodeURIComponent(window.location.href),
         "Content-Type": "application/json",
-
         ...options.headers,
       },
       body: JSON.stringify(data),

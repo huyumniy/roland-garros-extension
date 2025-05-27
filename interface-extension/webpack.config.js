@@ -33,8 +33,12 @@ module.exports = {
       filename: "content-scripts/ui/settings.css",
     }),
     new CopyPlugin({
-      patterns: [{ from: "src/content-scripts/ui/settings.html", 
-      to: "ui/settings.html" }],
+      patterns: [
+        {
+          from: "src/content-scripts/ui/settings.html",
+          to: "ui/settings.html",
+        },
+      ],
     }),
   ],
   resolve: {

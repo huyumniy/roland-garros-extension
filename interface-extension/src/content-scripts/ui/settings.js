@@ -38,16 +38,15 @@ function selectSingleOption(elements, value, className) {
 function selectMultipleOptions(elements, values, className) {
   clearSelection(elements, className);
 
-  const normalizedValues = values.map(v => v.trim().toLowerCase());
+  const normalizedValues = values.map((v) => v.trim().toLowerCase());
 
-  elements.forEach(element => {
+  elements.forEach((element) => {
     const text = element.textContent.trim().toLowerCase();
     if (normalizedValues.includes(text)) {
       element.classList.add(className);
     }
   });
 }
-
 
 export const UI = {
   __settingsHTML: "",
@@ -59,11 +58,11 @@ export const UI = {
   async init() {
     // Load CSS and HTML templates
     const [cssText, htmlText] = await Promise.all([
-      fetch(chrome.runtime.getURL("src/content-scripts/ui/settings.css")).then((response) =>
-        response.text()
+      fetch(chrome.runtime.getURL("src/content-scripts/ui/settings.css")).then(
+        (response) => response.text()
       ),
-      fetch(chrome.runtime.getURL("src/content-scripts/ui/settings.html")).then((response) =>
-        response.text()
+      fetch(chrome.runtime.getURL("src/content-scripts/ui/settings.html")).then(
+        (response) => response.text()
       ),
     ]);
 
@@ -152,7 +151,7 @@ export const UI = {
           ...settings.sessions,
           ...settings.courts,
         ];
-        
+
         selectMultipleOptions(
           categoryOptions,
           combinedValues,
@@ -196,6 +195,9 @@ export const UI = {
     document.body.style.overflow = "auto";
   },
 
+  /**
+   * Creates initial button that used to open settings popup
+   */
   createSettingsButton(onClick) {
     const btn = document.createElement("button");
     btn.textContent = "Налаштування";
@@ -212,6 +214,5 @@ export const UI = {
     btn.addEventListener("click", onClick);
     document.body.appendChild(btn);
     return btn;
-  }
-
+  },
 };

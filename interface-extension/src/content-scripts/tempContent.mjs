@@ -1,4 +1,4 @@
-import { settings } from "../utils/settings.mjs";
+import { settings } from "../utils/advancedSettingsDate.mjs";
 import {
   dateToFullDateMapping,
   sessionMapping,
@@ -9,6 +9,7 @@ import { date } from "../utils/date.mjs";
 async function main() {
   const { entries, sessions, courts, dateParts, minPrice, maxPrice } =
     prepareFilterParams(settings);
+  console.log(dateParts);
   const offers = filterDates({
     entries,
     sessions,
@@ -22,6 +23,7 @@ async function main() {
     console.log("No tickets found.");
   } else {
     console.log(
+      "Successfuly found necessary tickets!!!",
       offers,
       settings.advancedSettings?.length ? "advanced offers" : "simple offers"
     );
@@ -40,14 +42,16 @@ function prepareFilterParams(settings) {
   if (settings.advancedSettings?.length) {
     const groups = settings.advancedSettings;
     const uniqueDates = [...new Set(groups.map((d) => d.date))];
+
     const randomDate =
       uniqueDates[Math.floor(Math.random() * uniqueDates.length)];
     const entries = groups.filter((d) => d.date === randomDate);
+
     return {
       entries,
       sessions: [],
       courts: [],
-      dateParts: [],
+      dateParts: [randomDate],
       minPrice,
       maxPrice,
     };
@@ -86,7 +90,14 @@ function filterDates({
     .flatMap((e) => e.offers)
     .filter((offer) => {
       if (!offer.isAvailable) return false;
-      if (offer.minPrice < minPrice || offer.minPrice > maxPrice) return false;
+
+      if (
+        minPrice !== undefined &&
+        offer.minPrice <= minPrice &&
+        maxPrice !== undefined &&
+        offer.minPrice >= maxPrice
+      )
+        return false;
 
       const mappedSession = sessionMapping[offer.sessionTypes];
       const mappedCourt = courtMapping[offer.court];
@@ -100,13 +111,13 @@ function filterDates({
           const part = d.date.split(" ").slice(1).join(" ");
           return hasDateMatch(offer, part);
         });
+      } else {
+        // simple mode:
+        if (sessions.length && !sessions.includes(mappedSession)) return false;
+        if (courts.length && !courts.includes(mappedCourt)) return false;
+        if (dateParts.length && !dateParts.some((p) => hasDateMatch(offer, p)))
+          return false;
       }
-
-      // simple mode:
-      if (sessions.length && !sessions.includes(mappedSession)) return false;
-      if (courts.length && !courts.includes(mappedCourt)) return false;
-      if (dateParts.length && !dateParts.some((p) => hasDateMatch(offer, p)))
-        return false;
 
       return true;
     });
