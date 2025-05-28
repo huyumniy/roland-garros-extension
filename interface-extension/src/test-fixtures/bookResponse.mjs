@@ -1,6 +1,6 @@
-// https://tickets.rolandgarros.com/api/v2/en/cart
+// https://tickets.rolandgarros.com/api/v2/ticket/cart/ticket-product-by-seat
 
-const cart = {
+export const bookResponse = {
     "tickets": [
         {
             "court": "PC",

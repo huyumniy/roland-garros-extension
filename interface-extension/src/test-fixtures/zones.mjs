@@ -1,17 +1,15 @@
-// https://tickets.rolandgarros.com/api/v2/en/ticket/category/page/offer/47/date/2025-05-25/sessions/2677?nightSession=true
-
-const zones = {
+export const zones = {
     "offer": {
-        "sessionTypes": "SOI",
+        "sessionTypes": "JOU",
         "court": "PC",
         "title": "Single ticket",
-        "sessionDatesLabel": "Sunday 25 May"
+        "sessionDatesLabel": "Wednesday 28 May"
     },
     "categories": [
         {
             "id": 14,
-            "price": 240,
-            "priceId": 86040,
+            "price": 285,
+            "priceId": 86065,
             "color": "#347261",
             "code": "LOG",
             "canSelectZone": true,
@@ -24,8 +22,8 @@ const zones = {
         },
         {
             "id": 68,
-            "price": 140,
-            "priceId": 86036,
+            "price": 170,
+            "priceId": 86061,
             "color": "#C68216",
             "code": "Cat. OR",
             "canSelectZone": true,
@@ -38,13 +36,13 @@ const zones = {
         },
         {
             "id": 3,
-            "price": 110,
-            "priceId": 86037,
+            "price": 135,
+            "priceId": 86062,
             "color": "#ffca2a",
             "code": "Cat.1",
             "canSelectZone": true,
             "longName": "Category 1",
-            "hasStock": true,
+            "hasStock": false,
             "isPmr": false,
             "isAnnexeUp": false,
             "shortName": "Cat. 1",
@@ -52,8 +50,8 @@ const zones = {
         },
         {
             "id": 10,
-            "price": 80,
-            "priceId": 86038,
+            "price": 95,
+            "priceId": 86063,
             "color": "#f16a27",
             "code": "Cat.2",
             "canSelectZone": true,
@@ -66,8 +64,8 @@ const zones = {
         },
         {
             "id": 11,
-            "price": 55,
-            "priceId": 86039,
+            "price": 65,
+            "priceId": 86064,
             "color": "#58c9ff",
             "code": "Cat.3",
             "canSelectZone": true,
@@ -80,8 +78,8 @@ const zones = {
         },
         {
             "id": 69,
-            "price": 55,
-            "priceId": 86167,
+            "price": 65,
+            "priceId": 86172,
             "color": "#32415D",
             "code": "Cat. VR",
             "canSelectZone": true,
@@ -101,7 +99,7 @@ const zones = {
         "annexeCourtsTitle": "On the outside courts"
     },
     "stadium": {
-        "pictureUri": "https://static.pacifa3d.com/StadeRolandGarrosPARIS/34/v2024-2025_SOI/Top/Top.jpg",
+        "pictureUri": "https://static.pacifa3d.com/StadeRolandGarrosPARIS/34/v2024-2025/Top/Top.jpg",
         "zoneCoordinates": [
             {
                 "id": 518,
@@ -1690,6 +1688,11 @@ const zones = {
                         "categoryId": 3,
                         "quantity": 0,
                         "color": "#ffca2a"
+                    },
+                    {
+                        "categoryId": 68,
+                        "quantity": 0,
+                        "color": "#C68216"
                     }
                 ]
             },
@@ -1712,6 +1715,11 @@ const zones = {
                         "categoryId": 3,
                         "quantity": 0,
                         "color": "#ffca2a"
+                    },
+                    {
+                        "categoryId": 68,
+                        "quantity": 0,
+                        "color": "#C68216"
                     }
                 ]
             },
@@ -1737,8 +1745,13 @@ const zones = {
                 "categoryZoneStocks": [
                     {
                         "categoryId": 3,
-                        "quantity": 1,
+                        "quantity": 0,
                         "color": "#ffca2a"
+                    },
+                    {
+                        "categoryId": 68,
+                        "quantity": 0,
+                        "color": "#C68216"
                     }
                 ]
             },
@@ -2245,5 +2258,5 @@ const zones = {
         "imageType": null
     },
     "isPlacedSale": true,
-    "pictureUri": "https://static.pacifa3d.com/StadeRolandGarrosPARIS/34/v2024-2025_SOI/Top/Top.jpg"
+    "pictureUri": "https://static.pacifa3d.com/StadeRolandGarrosPARIS/34/v2024-2025/Top/Top.jpg"
 }

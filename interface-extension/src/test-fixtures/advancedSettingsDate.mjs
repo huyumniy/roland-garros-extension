@@ -10,7 +10,7 @@ export const settings = {
   secondsToRestartIfNoTicketsFound: 10,
   advancedSettings: [
     {
-      date: "SAT 31 MAY",
+      date: "WED 28 MAY",
       court: "Court Philippe-Chatrier",
       session: "day",
       categories: [
@@ -32,7 +32,7 @@ export const settings = {
       ],
     },
     {
-      date: "SAT 31 MAY",
+      date: "WED 28 MAY",
       court: "Court Philippe-Chatrier",
       session: "night",
       categories: [
@@ -54,7 +54,7 @@ export const settings = {
       ],
     },
     {
-      date: "SAT 31 MAY",
+      date: "WED 28 MAY",
       court: "Court Suzanne-Lenglen",
       session: "day",
       categories: [
@@ -76,7 +76,7 @@ export const settings = {
       ],
     },
     {
-      date: "SAT 31 MAY",
+      date: "WED 28 MAY",
       court: "Court Simonne-Mathieu",
       session: "day",
       categories: [

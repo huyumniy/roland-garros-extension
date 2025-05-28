@@ -1,4 +1,4 @@
-import { settings } from "../content.js";
+import { settings } from "../../models/settingsModel.js";
 import { updateSettings } from "../../services/settingsStorage.js";
 
 // Utility functions for managing selection states
@@ -27,6 +27,16 @@ function selectSingleOption(elements, value, className) {
   if (match) {
     match.classList.add(className);
   }
+}
+
+function setDefaultSettings() {
+  settings.amount = null;
+  settings.date = "";
+  settings.categories = [];
+  settings.sessions = [];
+  settings.courts = [];
+  settings.minPrice = null;
+  settings.maxPrice = null;
 }
 
 /**
@@ -118,13 +128,22 @@ export const UI = {
       });
     });
 
+    container.querySelector('input[name="interval"]').value = settings.secondsToRestartIfNoTicketsFound || 15;
+    let minimum_price = container.querySelector('input[name="minimum_price"]')
+      minimum_price.value = settings.minPrice ?? '';
+      let maximum_price = container.querySelector('input[name="maximum_price"]')
+      maximum_price.value = settings.maxPrice ?? '';
     // Populate initial state based on saved settings
     if (settings.googleSheetsSettings) {
-      // If Google Sheets is configured, clear other selections
+      // If Google Sheets is configured, clear other selections and settings
+      setDefaultSettings();
+      // Clear selections in UI
       googleSheetsInput.value = settings.googleSheetsSettings;
       clearSelection(ticketOptions, "tickets_selector_selected");
       clearSelection(dateOptions, "tickets_selector_selected");
       clearSelection(categoryOptions, "selector_selected");
+      maximum_price.value = '';
+      minimum_price.value = '';
     } else {
       // Use saved amount, date, and categories
       googleSheetsInput.value = settings.googleSheetsSettings || "";

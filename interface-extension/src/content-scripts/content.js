@@ -6,27 +6,24 @@ import {
   courtMapping,
 } from "../utils/mappings.mjs";
 import { fetchSheetData } from "../services/googleSheets.js";
-import { fetchData } from "../utils/fetch_util.js";
+import { getData, sendData } from "../utils/fetchUtil.js";
+import { saveSettings } from "../services/settingsStorage.js";
+import { _countAndRun } from "../domain/scheduler.js";
+
+import { filterDates }   from "../domain/filters/dateFilter.js";
+import { parseDateData } from "../domain/parsers/parseDateData.js";
+import { filterZones } from "../domain/filters/zoneFilter.js";
+import { parseZoneData } from "../domain/parsers/parseZoneData.js";
+import { filterSeats } from "../domain/filters/seatFilter.js";
+import { convertToPayload, findBiggestArray } from "../utils/helpers.js";
+
+import { settings } from "../models/settingsModel.js";
+
 
 const link = document.createElement("link");
 link.rel = "stylesheet";
 link.href = chrome.runtime.getURL("src/content-scripts/ui/settings.css");
 document.head.appendChild(link);
-
-export let settings = {
-  amount: null,
-  date: null,
-  categories: [],
-  sessions: [],
-  courts: [],
-  googleSheetsSettings: false,
-  timesToBrowserTabReload: 200,
-  secondsToRestartIfNoTicketsFound: 10,
-  stopExecutionFlag: true,
-  advancedSettings: [],
-  timesToBrowserTabReload: 200,
-  secondsToRestartIfNoTicketsFound: 15,
-};
 
 (async function init() {
   const db = await openDatabase();
@@ -54,21 +51,42 @@ async function captcha_check(data) {
   } else return false;
 }
 
-async function main() {
-  const { entries, sessions, courts, dateParts, minPrice, maxPrice } =
+export async function main() {
+  console.log(settings);
+  if (settings.stopExecutionFlag) {
+    return;
+  }
+
+  const { entries, sessions, courts, dateParts, categories, minPrice, maxPrice } =
     prepareFilterParams(settings);
   console.log(entries, dateParts);
-  const dateResponse = await fetchData(
+  const ticketsLimit = 6;
+
+  const {
+    status: dateStatus,
+    text: dateText,
+    json: dateResponse,
+    error: dateError
+  } = await getData(
     `https://tickets.rolandgarros.com/api/v2/en/ticket/calendar/offers-grouped-by-sorted-offer-type/${
       dateToFullDateMapping[dateParts[0]]
     }`
   );
-  if (!dateResponse || (await captcha_check(dateResponse))) {
-    console.log("No suitable date found.");
+
+  console.log("Date response:", dateResponse);
+  if (await captcha_check(dateResponse) || dateStatus === 403) {
+    console.log("Captcha detected, stopping execution.");
+    settings.stopExecutionFlag = true;
+    saveSettings()
+    window.location.reload();
+    return;
+  }
+  if (dateStatus !== 200 || !dateResponse || dateError) {
+    console.error("Error fetching dates:", dateError, dateText);
     _countAndRun();
     return;
   }
-  const offers = await filterDates(dateResponse, {
+  const dates = await filterDates(dateResponse, {
     entries,
     sessions,
     courts,
@@ -77,21 +95,153 @@ async function main() {
     maxPrice,
   });
 
-  if (!offers.length) {
-    console.log("No tickets found.");
-  } else {
-    console.log(
-      "Successfuly found necessary tickets!!!",
-      offers,
-      settings.advancedSettings?.length ? "advanced offers" : "simple offers"
-    );
+  console.log("Filtered dates:", dates);
+
+  if (!dates.length) {
+    console.log("No suitable date found.");
+    _countAndRun();
+    return;
+  } 
+  console.log(
+    "FOUND DATES",
+    dates,
+    settings.advancedSettings?.length ? "advanced offers" : "simple offers"
+  );
+  const {offerId, sessionType, sessionId} = parseDateData(dates);
+
+  const zoneLink = `https://tickets.rolandgarros.com/api/v2/en/ticket/category/page/offer/${offerId}/date/${dateToFullDateMapping[dateParts[0]]}/sessions/${sessionId}?nightSession=${sessionType === "night"}`;
+  
+  const {
+    status: zoneStatus,
+    text: zoneText,
+    json: zoneResponse,
+    error: zoneError
+  }  = await getData(zoneLink);
+
+  console.log("Zone response:", zoneResponse);
+
+  if (await captcha_check(zoneResponse)|| zoneStatus === 403) {
+    console.log("Captcha detected, stopping execution.");
+    settings.stopExecutionFlag = true;
+    saveSettings()
+    window.location.reload();
+    return;
   }
+
+  if (!zoneResponse || zoneStatus !== 200 || zoneError) {
+    console.error("Error fetching zones:", zoneError, zoneText);
+    _countAndRun();
+    return;
+  }
+
+  const {zoneOffer, filteredZones, categoryDefinitionById } = filterZones(zoneResponse, {
+      entries, categories, minPrice, maxPrice
+    })
+    console.log("Filtered zones:", filteredZones);
+    if (!filteredZones.length) {
+      console.log("No suitable zones found.");
+      _countAndRun();
+      return;
+    }
+  console.log("Successfully filtered zones and mappings:", filteredZones, categoryDefinitionById);
+  
+  const { zoneId, priceId, categoryName } = parseZoneData(filteredZones, categoryDefinitionById)
+
+  const seatsLink = `https://tickets.rolandgarros.com/api/v2/ticket/category/zone/${zoneId}/sessions/${sessionId}/priceId/${priceId}?nightSession=${sessionType === "night"}`
+
+  console.log("Seats link:", seatsLink);
+
+  const {
+    status: seatsStatus,
+    text: seatsText,
+    json: seatsResponse,
+    error: seatsError
+  } = await getData(seatsLink);
+
+  console.log("Seats response:", seatsResponse);
+  if (await captcha_check(seatsResponse)|| seatsStatus === 403) {
+      console.log("Captcha detected, stopping execution.");
+      settings.stopExecutionFlag = true;
+      saveSettings()
+      window.location.reload();
+      return;
+    }
+  if (!seatsResponse || seatsStatus !== 200 || seatsError) {
+    console.error("Error fetching seats:", seatsError, seatsText);
+    _countAndRun();
+    return;
+  }
+  const desiredAmount = settings.advancedSettings ? getCategoryAmount(entries, {
+    date: dateParts[0],
+    court: courtMapping[zoneOffer.court],
+    session: sessionMapping[zoneOffer.sessionTypes],
+    category: categoryName,
+  }) : settings.amount ? settings.amount : 1;
+  const filteredSeats = filterSeats(seatsResponse, desiredAmount)
+
+  console.log("Filtered seats:", filteredSeats);
+  if (!filteredSeats.length) {
+    console.log("No suitable seats found.");
+    _countAndRun();
+    return;
+  }
+  // console.log("Successfully filtered seats:", filteredSeats);
+  const biggestArrayOfSeats = findBiggestArray(filteredSeats)
+
+  const arrayOfPayloads = convertToPayload(biggestArrayOfSeats, priceId)
+
+  if (!arrayOfPayloads.length) {
+      console.log("No payloads to send.");
+      _countAndRun();
+      return;
+    }
+  console.log("Successfully converted to payload:", arrayOfPayloads);
+  const purchaseLink = `https://tickets.rolandgarros.com/api/v2/ticket/cart/ticket-product-by-seat`;
+
+  let boughtTickets = 0;
+  for (const payload of arrayOfPayloads) {
+    if (boughtTickets >= ticketsLimit) {
+      console.log("Reached the limit of bought tickets:", ticketsLimit);
+      break;
+    }
+    const {
+      status: purchaseStatus,
+      text: purchaseText,
+      json: purchaseResponse,
+      error: purchaseError
+    } = await sendData(purchaseLink, payload);
+
+    if (await captcha_check(purchaseResponse)|| purchaseStatus === 403) {
+      console.log("Captcha detected, stopping execution.");
+      settings.stopExecutionFlag = true;
+      saveSettings()
+      window.location.reload();
+      return;
+    }
+    if (!purchaseResponse || purchaseStatus !== 200 || purchaseError) {
+      console.error("Error sending purchase request:", purchaseError, purchaseText);
+      // displayTextInBottomLeftCorner(purchaseText || purchaseError || "Unknown error");
+      _countAndRun();
+      return;
+    }
+    if (purchaseResponse.tickets && purchaseResponse.tickets.length) {
+      boughtTickets = purchaseResponse.tickets.length;
+      console.log("Successfully bought tickets:", purchaseResponse.tickets.length);
+    } 
+  }
+  if (boughtTickets === 0) {
+    console.log("No tickets were bought, something went wrong.");
+    _countAndRun();
+    return;
+  }
+  
+  console.log("Finished execution, bought tickets:", boughtTickets);
+  alert(`Successfully bought ${boughtTickets} tickets! Please check your cart.`);
+  stopExecutionFlag = true;
+  return;
 }
-/**
- * Prepares filtering parameters based on settings mode.
- * For advancedSettings: picks a random date group and its entries.
- * For simple mode: extracts datePart, sessions, and courts arrays.
- */
+
+
 function prepareFilterParams(settings) {
   const minPrice = settings.minPrice ?? 0;
   const maxPrice = settings.maxPrice ?? Infinity;
@@ -109,169 +259,50 @@ function prepareFilterParams(settings) {
       sessions: [],
       courts: [],
       dateParts: [randomDate],
+      categories: [],
       minPrice,
       maxPrice,
     };
   }
 
-  const datePart = settings.date?.split(" ").slice(1).join(" ") || null;
+  const datePart = settings.date || null;
   return {
     entries: [],
     sessions: settings.sessions || [],
     courts: settings.courts || [],
     dateParts: datePart ? [datePart] : [],
+    categories: settings.categories || [],
     minPrice,
     maxPrice,
   };
 }
 
-/**
- * Generic offer filtering:
- * - SINGLE_DAY & available overall
- * - isAvailable && price range
- * - optional advanced entries (session+court+date)
- * - optional simple sessions/courts + dateParts
- */
-function filterDates({
-  entries,
-  sessions = [],
-  courts = [],
-  dateParts = [],
-  minPrice,
-  maxPrice,
-}) {
-  return date
-    .filter(
-      (e) => e.offerType.offerType === "SINGLE_DAY" && e.isOfferTypeAvailable
-    )
-    .flatMap((e) => e.offers)
-    .filter((offer) => {
-      if (!offer.isAvailable) return false;
-
-      if (
-        minPrice !== undefined &&
-        offer.minPrice <= minPrice &&
-        maxPrice !== undefined &&
-        offer.minPrice >= maxPrice
-      )
-        return false;
-
-      const mappedSession = sessionMapping[offer.sessionTypes];
-      const mappedCourt = courtMapping[offer.court];
-
-      // advancedSettings mode:
-
-      if (Array.isArray(entries) && entries.length) {
-        return entries.some((d) => {
-          if (d.session !== mappedSession || d.court !== mappedCourt)
-            return false;
-          const part = d.date.split(" ").slice(1).join(" ");
-          return hasDateMatch(offer, part);
-        });
-      } else {
-        // simple mode:
-        if (sessions.length && !sessions.includes(mappedSession)) return false;
-        if (courts.length && !courts.includes(mappedCourt)) return false;
-        if (dateParts.length && !dateParts.some((p) => hasDateMatch(offer, p)))
-          return false;
-      }
-
-      return true;
-    });
-}
-/**
- * Checks if offer has any session matching "DD MONTH" string
- */
-function hasDateMatch(offer, datePart) {
-  return offer.sessions.some((s) => {
-    const [, dayNum, monthWord] = s.dateLongDescription.split(" ");
-    return `${dayNum} ${monthWord.toUpperCase()}` === datePart;
-  });
-}
-
-function displayTextInBottomLeftCorner(text) {
-  const existingTextElement = document.getElementById("bottomLeftText");
-
-  function formatNumber(num) {
-    return num < 10 ? `0${num}` : num;
-  }
-
-  function getCurrentTime() {
-    const now = new Date();
-    const hours = formatNumber(now.getHours());
-    const minutes = formatNumber(now.getMinutes());
-    const seconds = formatNumber(now.getSeconds());
-    return `${hours}:${minutes}:${seconds}`;
-  }
-
-  if (!existingTextElement) {
-    const newTextElement = document.createElement("div");
-    newTextElement.id = "bottomLeftText";
-    newTextElement.style.display = "block";
-    newTextElement.style.padding = "10px";
-    newTextElement.style.backgroundColor = "#000";
-    newTextElement.style.color = "#fff";
-    newTextElement.style.fontFamily = "Arial, sans-serif";
-
-    let bottomLeftInfo = document.getElementById("bottomLeftContainer");
-    if (bottomLeftInfo) {
-      bottomLeftInfo.appendChild(newTextElement);
-    } else {
-      let bottomLeftInfo = document.createElement("div");
-      bottomLeftInfo.id = "bottomLeftContainer";
-      bottomLeftInfo.style.display = "flex";
-      bottomLeftInfo.style.gap = "5px";
-      bottomLeftInfo.style.flexDirection = "column";
-      bottomLeftInfo.style.position = "absolute";
-      bottomLeftInfo.style.maxWidth = "50%";
-      bottomLeftInfo.style.bottom = "0";
-      bottomLeftInfo.style.left = "0";
-      document.body.appendChild(bottomLeftInfo);
-      bottomLeftInfo.appendChild(newTextElement);
-    }
-
-    newTextElement.textContent = `${text} - ${getCurrentTime()}`;
-  } else {
-    existingTextElement.textContent = `${text} - ${getCurrentTime()}`;
-  }
-}
-
-function _countAndRun() {
-  // displayTextInBottomLeftCorner("No tickets found!");
-  console.log("No tickets found!");
-  setTimeout(
-    () => {
-      _countScriptRunning();
-      main();
-      console.log("calling main function");
-    },
-    settings.secondsToRestartIfNoTicketsFound
-      ? settings.secondsToRestartIfNoTicketsFound * 1000
-      : 5 * 1000
+function getCategoryAmount(entries, { date, court, session, category }) {
+  const entry = entries.find(item =>
+    item.date    === date &&
+    item.court   === court &&
+    item.session === session
   );
+  if (!entry) return 0;
+
+  const catObj = entry.categories.find(obj =>
+    Object.prototype.hasOwnProperty.call(obj, category)
+  );
+  if (!catObj) return 0;
+
+  return catObj[category] || 0;
 }
 
-function _countScriptRunning() {
-  let ticketCatcherCounter = sessionStorage.getItem("RealTicketCatcherCounter");
-  if (ticketCatcherCounter === null) ticketCatcherCounter = 1;
-  console.log(
-    'Script "' +
-      '" has been run ' +
-      ticketCatcherCounter +
-      " times from " +
-      settings.timesToBrowserTabReload +
-      "."
-  );
-  if (ticketCatcherCounter >= settings.timesToBrowserTabReload) {
-    sessionStorage.setItem("RealTicketCatcherCounter", 0);
-    console.log("reloading page...");
-    window.location.reload();
-  } else {
-    sessionStorage.setItem("RealTicketCatcherCounter", ++ticketCatcherCounter);
+async function updateGoogleSheetSettings() {
+  console.log("Updating Google Sheets settings...");
+  if (settings.googleSheetsSettings) {
+    settings.advancedSettings = await fetchSheetData(
+      settings.googleSheetsSettings
+    );
+    console.log(settings.advancedSettings);
   }
 }
 
 setInterval(() => {
   updateGoogleSheetSettings().catch(console.error);
 }, 60_000);
-// (async () => receive_sheets_data_main())();

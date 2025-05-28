@@ -1,6 +1,6 @@
 // https://tickets.rolandgarros.com/api/v2/ticket/category/zone/898/sessions/2677/priceId/86037?nightSession=true
 
-const seats = {
+export const seats = {
     "pictureUrl": "https://static.pacifa3d.com/StadeRolandGarrosPARIS/34/v2024-2025_SOI/Blocks/572.jpg",
     "seatCoordinates": [
         {

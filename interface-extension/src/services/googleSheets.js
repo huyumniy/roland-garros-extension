@@ -4,10 +4,15 @@ import {
   courtMapping,
 } from "../utils/mappings.mjs";
 
+function parseNullableInt(raw) {
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
 export async function fetchSheetData(sheetUrl) {
   const SHEET_ID = sheetUrl.split("/d/")[1].split("/")[0];
   const SHEET_TITLE = "main";
-  const SHEET_RANGE = "A2:H";
+  const SHEET_RANGE = "A2:J";
   const FULL_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${SHEET_TITLE}&range=${SHEET_RANGE}`;
 
   try {
@@ -32,6 +37,8 @@ export async function fetchSheetData(sheetUrl) {
           court: courtMapping[c[1]?.v],
           session: sessionMapping[c[1]?.v],
           categories,
+          minPrice: parseNullableInt(c[7]?.v),
+          maxPrice: parseNullableInt(c[8]?.v),
         };
       })
       .filter((item) => item.date && item.categories.length > 0);

@@ -2,7 +2,7 @@
 import { openDatabase } from "./db.js";
 import { fetchSheetData } from "./googleSheets.js";
 import { UI } from "../content-scripts/ui/settings.js";
-import { settings } from "../content-scripts/content.js";
+import { settings } from "../models/settingsModel.js";
 
 let db;
 
@@ -30,8 +30,6 @@ export async function loadSettings() {
 // Save the updated `settings` object to IndexedDB
 export async function saveSettings() {
   if (!db) db = await openDatabase(); // Ensure DB is opened
-
-  settings.stopExecutionFlag = undefined;
 
   const transaction = db.transaction("settings", "readwrite");
   const store = transaction.objectStore("settings");
@@ -63,6 +61,12 @@ export async function updateSettings() {
 
   const parentSelector = "body .tickets.tickets_popup_wrapper";
 
+  const interval = document.querySelector(`${parentSelector} input[name="interval"]`).value;
+
+  const minPriceEl = document.querySelector(`${parentSelector} input[name="minimum_price"]`)
+  const maxPriceEl = document.querySelector(`${parentSelector} input[name="maximum_price"]`)
+  const minimumPrice = minPriceEl.value ?? ""
+  const maximumPrice = maxPriceEl.value ?? "";
   const dateElement = document.querySelector(
     ".date_select > .tickets_selector_selected"
   );
@@ -83,6 +87,9 @@ export async function updateSettings() {
     sessions: getSelectedValues(".session_select"),
     courts: getSelectedValues(".court_select"),
     stopExecutionFlag: undefined,
+    secondsToRestartIfNoTicketsFound: parseInt(interval) || 15,
+    minPrice: minimumPrice ? parseInt(minimumPrice) : null,
+    maxPrice: maximumPrice ? parseInt(maximumPrice) : null,
   });
 
   if (googleSheetsSettings) {
@@ -99,4 +106,5 @@ export async function updateSettings() {
 
   await saveSettings();
   UI.closePopup();
+  window.location.reload();
 }
