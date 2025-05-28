@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Roland Garros Extension Bot",
+  "version": "1.0.0",
+  "content_scripts": [
+    {
+      "matches": ["*://*.rolandgarros.com/*"],
+      "js": ["dist/content-scripts/content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+       "src/content-scripts/ui/settings.html",
+       "src/content-scripts/ui/settings.css"
+      ],
+      "matches": ["<all_urls>"],
+      "use_dynamic_url": true
+    }
+  ],
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "src/popup/popup.html"
+  }
+}
