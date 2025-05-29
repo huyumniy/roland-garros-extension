@@ -17,7 +17,6 @@ import speech_recognition
 import pydub
 import textwrap
 from datetime import datetime, timedelta
-from filtration import filter_seats
 from utils.sheetsApi import get_data_from_google_sheets
 
 
