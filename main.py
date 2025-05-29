@@ -407,6 +407,41 @@ def start_workers(browsersAmount, proxyInput, adspowerApi,
         thread.join()
 
 
+
+async def get_indexeddb_data(driver, db_name, store_name, key=1):
+    # Build a snippet that returns a Promise resolving to your settings JSON or null
+    script = f"""
+    (function() {{
+        return new Promise((resolve, reject) => {{
+            let openRequest = indexedDB.open("{db_name}");
+            openRequest.onerror = () => resolve(null);
+            openRequest.onsuccess = event => {{
+                let db = event.target.result;
+                let tx = db.transaction("{store_name}", "readonly");
+                let store = tx.objectStore("{store_name}");
+                let getRequest = store.get({key});
+                getRequest.onerror = () => resolve(null);
+                getRequest.onsuccess = () => {{
+                    let data = getRequest.result;
+                    // If you stored an object with a .settings field
+                    resolve(data ? data.settings : null);
+                }};
+            }};
+        }});
+    }}())  /* immediately‐invoked because evaluate wants an expression */
+    """
+
+    # Evaluate the script, awaiting the promise, and return by value
+    result = await driver.evaluate(
+        script,
+        await_promise=True,
+        return_by_value=True
+    )
+
+    # result is now either your settings object (JSON‑compatible) or None
+    return result
+
+
 def is_port_open(host, port):
   try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
