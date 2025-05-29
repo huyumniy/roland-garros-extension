@@ -15,18 +15,119 @@ import eel
 from colorama import init, Fore
 import speech_recognition
 import pydub
+import logging
 import textwrap
 from datetime import datetime, timedelta
-from filtration import filter_seats
 from utils.sheetsApi import get_data_from_google_sheets
-
+import nodriver as uc
+import logging
+import asyncio
+from nodriver import cdp
+import itertools
+from asyncio import iscoroutine, iscoroutinefunction
 
 TIME_FROM_START = datetime.now()
 TIME_TO_WAIT = TIME_FROM_START + timedelta(minutes=5)
+
+logger = logging.getLogger("uc.connection")
+
 pydub.AudioSegment.converter = os.path.join(os.getcwd(), "ffmpeg", "bin", "ffmpeg.exe")
 print(os.path.join(os.getcwd(), "ffmpeg", "bin", "ffmpeg.exe"))
 init(autoreset=True)
 accounts = []
+
+
+async def listener_loop(self):
+    while True:
+        try:
+            msg = await asyncio.wait_for(
+                self.connection.websocket.recv(), self.time_before_considered_idle
+            )
+        except asyncio.TimeoutError:
+            self.idle.set()
+            # breathe
+            # await asyncio.sleep(self.time_before_considered_idle / 10)
+            continue
+        except (Exception,) as e:
+            # break on any other exception
+            # which is mostly socket is closed or does not exist
+            # or is not allowed
+
+            logger.debug(
+                "connection listener exception while reading websocket:\n%s", e
+            )
+            break
+
+        if not self.running:
+            # if we have been cancelled or otherwise stopped running
+            # break this loop
+            break
+
+        # since we are at this point, we are not "idle" anymore.
+        self.idle.clear()
+
+        message = json.loads(msg)
+        if "id" in message:
+            # response to our command
+            if message["id"] in self.connection.mapper:
+                # get the corresponding Transaction
+                tx = self.connection.mapper[message["id"]]
+                logger.debug("got answer for %s", tx)
+                # complete the transaction, which is a Future object
+                # and thus will return to anyone awaiting it.
+                tx(**message)
+                self.connection.mapper.pop(message["id"])
+        else:
+            # probably an event
+            try:
+                event = cdp.util.parse_json_event(message)
+                event_tx = uc.connection.EventTransaction(event)
+                if not self.connection.mapper:
+                    self.connection.__count__ = itertools.count(0)
+                event_tx.id = next(self.connection.__count__)
+                self.connection.mapper[event_tx.id] = event_tx
+            except Exception as e:
+                logger.info(
+                    "%s: %s  during parsing of json from event : %s"
+                    % (type(e).__name__, e.args, message),
+                    exc_info=True,
+                )
+                continue
+            except KeyError as e:
+                logger.info("some lousy KeyError %s" % e, exc_info=True)
+                continue
+            try:
+                if type(event) in self.connection.handlers:
+                    callbacks = self.connection.handlers[type(event)]
+                else:
+                    continue
+                if not len(callbacks):
+                    continue
+                for callback in callbacks:
+                    try:
+                        if iscoroutinefunction(callback) or iscoroutine(callback):
+                            await callback(event)
+                        else:
+                            callback(event)
+                    except Exception as e:
+                        logger.warning(
+                            "exception in callback %s for event %s => %s",
+                            callback,
+                            event.__class__.__name__,
+                            e,
+                            exc_info=True,
+                        )
+                        raise
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                raise
+            continue
+        
+#call this after imported nodriver
+#uc_fix(*nodriver module*)
+def uc_fix(uc: uc):
+    uc.core.connection.Listener.listener_loop = listener_loop
 
 
 async def custom_wait(page, selector, timeout=10):
@@ -277,6 +378,65 @@ async def main(browser_id, browsers_amount, proxy_list=None,
         page = await driver.get(link)
         if adspower_id:
             print(Fore.GREEN + f"Browser {adspower_id if adspower_id else browser_id}: Successfully started!\n")
+        while True:
+            await check_for_element(page, '#calendarSection > div.calendarGrid > div:nth-child(1) > div > div.buttonWrapper > div > a', click=True)
+            if await check_for_element(page, 'iframe[src^="https://geo.captcha-delivery.com"]'):
+                user_part    = f"User: {os.getlogin()}."
+                browser_part = f"Browser: {adspower_id if adspower_id else browser_id}"
+                text = f"CAPTCHA"
+                message = "\n".join([user_part + " " + browser_part, text])
+                send_slack_message(message)
+                # print('trying to delete cookies')
+                # delete_cookies('datadome')
+                print(Fore.YELLOW + f"Browser {adspower_id if adspower_id else browser_id}: 403!\n")
+                # await wait_for_captcha(page, driver)
+                # time.sleep(120)
+                # if proxy_list: await change_proxy(page)
+                time.sleep(120)
+                await page.get(link)
+                time.sleep(5)
+                continue
+            
+            if len(accounts) > 0:
+                random_account = random.choice(accounts)
+                login = random_account[0]
+                password = random_account[1]
+                auth_result = await authorization(page, login, password)
+                if not auth_result:
+                    print(f'Не вдалось авторизуватись. Browser {adspower_id if adspower_id else browser_id}. Наступна спроба через 60 сек.')
+                    time.sleep(60)
+                    continue
+            
+            if await check_for_element(page, '#__layout > div > div.custom-body > div > div > div.calendar.container-main > div.tunnel-popin > div.m01 > div.tunnel-popin-content > div.tunnel-popin-check > input[type=checkbox]', click=True):
+                time.sleep(2)
+                await check_for_element(page, '#__layout > div > div.custom-body > div > div > div.calendar.container-main > div.tunnel-popin > div.m01 > div.tunnel-popin-content > div.tunnel-popin-button-row > button', click=True)
+            try:
+                ticket_bot_settings = await get_indexeddb_data(page, 'TicketBotDB', 'settings')
+                input_date = ticket_bot_settings.get('date')
+                categories = ticket_bot_settings.get('categories')
+                input_time = ticket_bot_settings.get('sessions')
+                amount = int(ticket_bot_settings.get('amount')) if ticket_bot_settings.get('amount') != None else None
+                desired_courts = ticket_bot_settings.get('courts')
+                stop_execution_flag = ticket_bot_settings.get('stopExecutionFlag')
+                advanced_settings = ticket_bot_settings.get('advancedSettings')
+
+                if stop_execution_flag:
+                    time.sleep(5)
+                    continue
+            except Exception as e:
+                print(f"Неможливо дістати дані з IndexedDB, дані з вбудованого інтерфейсу не були знайдені на сайті.\nError: {e}")
+                ticket_bot_settings = None
+                if google_sheets_accounts_link:
+                    try:
+                        await check_for_element(page, 'button.integrated-settings-button', click=True)
+                        google_sheets_data_input = await check_for_element(page, '#settingsFormContainer > div > div > input[name="settings"]')
+                        if google_sheets_data_input and not google_sheets_data_input.text: await google_sheets_data_input.send_keys(google_sheets_data_link)
+                        await check_for_element(page, '#settingsFormContainer #tickets_start', click=True)
+                    except Exception as e:
+                        print("can't pass google sheets accounts link into interface")
+                time.sleep(60)
+                continue
+
 
     except Exception as e: print(e)
 
@@ -349,6 +509,41 @@ def start_workers(browsersAmount, proxyInput, adspowerApi,
         thread.join()
 
 
+
+async def get_indexeddb_data(driver, db_name, store_name, key=1):
+    # Build a snippet that returns a Promise resolving to your settings JSON or null
+    script = f"""
+    (function() {{
+        return new Promise((resolve, reject) => {{
+            let openRequest = indexedDB.open("{db_name}");
+            openRequest.onerror = () => resolve(null);
+            openRequest.onsuccess = event => {{
+                let db = event.target.result;
+                let tx = db.transaction("{store_name}", "readonly");
+                let store = tx.objectStore("{store_name}");
+                let getRequest = store.get({key});
+                getRequest.onerror = () => resolve(null);
+                getRequest.onsuccess = () => {{
+                    let data = getRequest.result;
+                    // If you stored an object with a .settings field
+                    resolve(data ? data.settings : null);
+                }};
+            }};
+        }});
+    }}())  /* immediately‐invoked because evaluate wants an expression */
+    """
+
+    # Evaluate the script, awaiting the promise, and return by value
+    result = await driver.evaluate(
+        script,
+        await_promise=True,
+        return_by_value=True
+    )
+
+    # result is now either your settings object (JSON‑compatible) or None
+    return result
+
+
 def is_port_open(host, port):
   try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -362,8 +557,9 @@ def is_port_open(host, port):
 
 
 if __name__ == "__main__":
+    uc_fix(uc)
     eel.init('gui')
-
+    
     port = 8000
     while True:
         try:
