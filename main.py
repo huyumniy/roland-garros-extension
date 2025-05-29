@@ -15,11 +15,19 @@ import eel
 from colorama import init, Fore
 import speech_recognition
 import pydub
+import logging
 import textwrap
 from datetime import datetime, timedelta
 from utils.sheetsApi import get_data_from_google_sheets
+import nodriver as uc
+import logging
+import asyncio
+from nodriver import cdp
 import itertools
 from asyncio import iscoroutine, iscoroutinefunction
+
+TIME_FROM_START = datetime.now()
+TIME_TO_WAIT = TIME_FROM_START + timedelta(minutes=5)
 
 logger = logging.getLogger("uc.connection")
 
@@ -27,10 +35,6 @@ pydub.AudioSegment.converter = os.path.join(os.getcwd(), "ffmpeg", "bin", "ffmpe
 print(os.path.join(os.getcwd(), "ffmpeg", "bin", "ffmpeg.exe"))
 init(autoreset=True)
 accounts = []
-
-
-TIME_FROM_START = datetime.now()
-TIME_TO_WAIT = TIME_FROM_START + timedelta(minutes=5)
 
 
 async def listener_loop(self):
@@ -124,7 +128,6 @@ async def listener_loop(self):
 #uc_fix(*nodriver module*)
 def uc_fix(uc: uc):
     uc.core.connection.Listener.listener_loop = listener_loop
-
 
 async def custom_wait(page, selector, timeout=10):
     for _ in range(0, timeout):
@@ -374,7 +377,7 @@ async def main(browser_id, browsers_amount, proxy_list=None,
         page = await driver.get(link)
         if adspower_id:
             print(Fore.GREEN + f"Browser {adspower_id if adspower_id else browser_id}: Successfully started!\n")
-         while True:
+        while True:
             await check_for_element(page, '#calendarSection > div.calendarGrid > div:nth-child(1) > div > div.buttonWrapper > div > a', click=True)
             if await check_for_element(page, 'iframe[src^="https://geo.captcha-delivery.com"]'):
                 user_part    = f"User: {os.getlogin()}."
