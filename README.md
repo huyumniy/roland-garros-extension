@@ -1,3 +1,10 @@
+# How to get started.
+1. download source code
+2. run install.bat
+3. after installing all dependencies from install.bat, run build.bat
+4. once building is up, open chrome://extensions/ in developers mode and import interface-extension folder
+5. open https://tickets.rolandgarros.com/en and if everything is fine you see "Settings" in bottom right corner
+
 # Roland Garros API
 
 API to retrieve list of dates, zones, seats and cart
