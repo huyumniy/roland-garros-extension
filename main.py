@@ -276,6 +276,65 @@ async def main(browser_id, browsers_amount, proxy_list=None,
         page = await driver.get(link)
         if adspower_id:
             print(Fore.GREEN + f"Browser {adspower_id if adspower_id else browser_id}: Successfully started!\n")
+        while True:
+            await check_for_element(page, '#calendarSection > div.calendarGrid > div:nth-child(1) > div > div.buttonWrapper > div > a', click=True)
+            if await check_for_element(page, 'iframe[src^="https://geo.captcha-delivery.com"]'):
+                user_part    = f"User: {os.getlogin()}."
+                browser_part = f"Browser: {adspower_id if adspower_id else browser_id}"
+                text = f"CAPTCHA"
+                message = "\n".join([user_part + " " + browser_part, text])
+                # send_slack_message(message)
+                # print('trying to delete cookies')
+                # delete_cookies('datadome')
+                print(Fore.YELLOW + f"Browser {adspower_id if adspower_id else browser_id}: 403!\n")
+                # await wait_for_captcha(page, driver)
+                # time.sleep(120)
+                # if proxy_list: await change_proxy(page)
+                time.sleep(120)
+                await page.get(link)
+                time.sleep(5)
+                continue
+            
+            if len(accounts) > 0:
+                random_account = random.choice(accounts)
+                login = random_account[0]
+                password = random_account[1]
+                auth_result = await authorization(page, login, password)
+                if not auth_result:
+                    print(f'Не вдалось авторизуватись. Browser {adspower_id if adspower_id else browser_id}. Наступна спроба через 60 сек.')
+                    time.sleep(60)
+                    continue
+            
+            if await check_for_element(page, '#__layout > div > div.custom-body > div > div > div.calendar.container-main > div.tunnel-popin > div.m01 > div.tunnel-popin-content > div.tunnel-popin-check > input[type=checkbox]', click=True):
+                time.sleep(2)
+                await check_for_element(page, '#__layout > div > div.custom-body > div > div > div.calendar.container-main > div.tunnel-popin > div.m01 > div.tunnel-popin-content > div.tunnel-popin-button-row > button', click=True)
+            try:
+                ticket_bot_settings = await get_indexeddb_data(page, 'TicketBotDB', 'settings')
+                input_date = ticket_bot_settings.get('date')
+                categories = ticket_bot_settings.get('categories')
+                input_time = ticket_bot_settings.get('sessions')
+                amount = int(ticket_bot_settings.get('amount')) if ticket_bot_settings.get('amount') != None else None
+                desired_courts = ticket_bot_settings.get('courts')
+                stop_execution_flag = ticket_bot_settings.get('stopExecutionFlag')
+                advanced_settings = ticket_bot_settings.get('advancedSettings')
+
+                if stop_execution_flag:
+                    time.sleep(5)
+                    continue
+            except Exception as e:
+                print(f"Неможливо дістати дані з IndexedDB, дані з вбудованого інтерфейсу не були знайдені на сайті.\nError: {e}")
+                ticket_bot_settings = None
+                if google_sheets_accounts_link:
+                    try:
+                        await check_for_element(page, 'body > a.integrated-settings-button', click=True)
+                        google_sheets_data_input = await check_for_element(page, '#settingsFormContainer > div > div > input[name="settings"]')
+                        if google_sheets_data_input and not google_sheets_data_input.text: await google_sheets_data_input.send_keys(google_sheets_data_link)
+                        await check_for_element(page, '#settingsFormContainer #tickets_start', click=True)
+                    except Exception as e:
+                        print("can't pass google sheets accounts link into interface")
+                time.sleep(60)
+                continue
+
 
     except Exception as e: print(e)
 
