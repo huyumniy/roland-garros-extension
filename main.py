@@ -367,6 +367,7 @@ async def main(browser_id, browsers_amount, proxy_list=None,
             config = uc.Config(user_data_dir=None, headless=False, browser_executable_path=None,\
             browser_args=None, sandbox=True, lang='en-US')
             config.add_extension(extension_path="./BPProxySwitcher.crx")
+            config.add_extension(extension_path="./EditThisCookieChrome.crx")
             config.add_extension(extension_path=interface_extension_path)
             driver = await uc.Browser.create(config=config)
             if proxy_list:
