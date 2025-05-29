@@ -276,14 +276,14 @@ async def main(browser_id, browsers_amount, proxy_list=None,
         page = await driver.get(link)
         if adspower_id:
             print(Fore.GREEN + f"Browser {adspower_id if adspower_id else browser_id}: Successfully started!\n")
-        while True:
+         while True:
             await check_for_element(page, '#calendarSection > div.calendarGrid > div:nth-child(1) > div > div.buttonWrapper > div > a', click=True)
             if await check_for_element(page, 'iframe[src^="https://geo.captcha-delivery.com"]'):
                 user_part    = f"User: {os.getlogin()}."
                 browser_part = f"Browser: {adspower_id if adspower_id else browser_id}"
                 text = f"CAPTCHA"
                 message = "\n".join([user_part + " " + browser_part, text])
-                # send_slack_message(message)
+                send_slack_message(message)
                 # print('trying to delete cookies')
                 # delete_cookies('datadome')
                 print(Fore.YELLOW + f"Browser {adspower_id if adspower_id else browser_id}: 403!\n")
@@ -326,7 +326,7 @@ async def main(browser_id, browsers_amount, proxy_list=None,
                 ticket_bot_settings = None
                 if google_sheets_accounts_link:
                     try:
-                        await check_for_element(page, 'body > a.integrated-settings-button', click=True)
+                        await check_for_element(page, 'button.integrated-settings-button', click=True)
                         google_sheets_data_input = await check_for_element(page, '#settingsFormContainer > div > div > input[name="settings"]')
                         if google_sheets_data_input and not google_sheets_data_input.text: await google_sheets_data_input.send_keys(google_sheets_data_link)
                         await check_for_element(page, '#settingsFormContainer #tickets_start', click=True)
