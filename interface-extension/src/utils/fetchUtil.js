@@ -1,6 +1,9 @@
 // common “fetch + parse” helper
 const doFetch = async (url, fetchOpts) => {
-  let response, text = null, json = null, error = null;
+  let response,
+    text = null,
+    json = null,
+    error = null;
 
   try {
     response = await fetch(url, fetchOpts);
@@ -35,7 +38,7 @@ export const getData = async (url, options = {}) => {
   };
 
   return doFetch(url, {
-    method:  "GET",
+    method: "GET",
     headers,
     ...options,
   });
@@ -44,15 +47,14 @@ export const getData = async (url, options = {}) => {
 // POST request
 export const sendData = async (url, payload, options = {}) => {
   const headers = {
-    "x-queueit-ajaxpageurl": encodeURIComponent(window.location.href),
-    "Content-Type":          "application/json",
+    "Content-Type": "application/json",
     ...options.headers,
   };
 
   return doFetch(url, {
-    method:  "POST",
+    method: "POST",
     headers,
-    body:    JSON.stringify(payload),
+    body: JSON.stringify(payload),
     ...options,
   });
 };

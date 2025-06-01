@@ -86,9 +86,20 @@ export const sessionMapping = {
   SOI: "night",
 };
 
+export const sessionReverseMapping = {
+  night: "JOU",
+  day: "SOI",
+};
+
 export const courtMapping = {
   PC: "Court Philippe-Chatrier",
   PCN: "Court Philippe-Chatrier",
   SL: "Court Suzanne-Lenglen",
   SM: "Court Simonne-Mathieu",
+};
+
+export const courtReverseMapping = {
+  "Court Philippe-Chatrier": "PC",
+  "Court Suzanne-Lenglen": "SL",
+  "Court Simonne-Mathieu": "SM",
 };
