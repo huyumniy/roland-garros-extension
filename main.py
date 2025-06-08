@@ -461,7 +461,7 @@ def poll_sheet_every(interval: float, sheet_range: str, sheet_url: str):
 
 @eel.expose
 def start_workers(browsersAmount, proxyInput, adspowerApi,
-    adspowerIds, googleSheetsDataLink=None, googleSheetsAccountsLink="https://docs.google.com/spreadsheets/d/1wP-xaf0NUIppb0hgVnhPUiihP-FfaT_WM82UQDEv4ms/edit?gid=0#gid=0"
+    adspowerIds, googleSheetsDataLink=None, googleSheetsAccountsLink=None,
 ):
     if googleSheetsAccountsLink:
         polling_thread = threading.Thread(
