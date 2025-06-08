@@ -1,3 +1,5 @@
+sends requests to roland garros api until reaches enough amount of tickets in cart.
+
 # Roland Garros API
 
 API to retrieve list of dates, zones, seats and cart
