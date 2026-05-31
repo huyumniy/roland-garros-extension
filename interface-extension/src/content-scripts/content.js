@@ -81,7 +81,7 @@ export async function main() {
   );
 
   console.log("Date response:", dateResponse);
-  if ((await captcha_check(dateResponse)) || dateStatus === 403) {
+  if ((await captcha_check(dateResponse)) || [403, 409].includes(dateStatus) ) {
     console.log("Captcha detected, stopping execution.");
     settings.stopExecutionFlag = true;
     saveSettings();
@@ -129,7 +129,7 @@ export async function main() {
 
   console.log("Zone response:", zoneResponse);
 
-  if ((await captcha_check(zoneResponse)) || zoneStatus === 403) {
+  if ((await captcha_check(zoneResponse)) || [403, 409].includes(zoneStatus)) {
     console.log("Captcha detected, stopping execution.");
     settings.stopExecutionFlag = true;
     saveSettings();
@@ -183,7 +183,7 @@ export async function main() {
   } = await getData(seatsLink);
 
   console.log("Seats response:", seatsResponse);
-  if ((await captcha_check(seatsResponse)) || seatsStatus === 403) {
+  if ((await captcha_check(seatsResponse)) || [403, 409].includes(seatsStatus)) {
     console.log("Captcha detected, stopping execution.");
     settings.stopExecutionFlag = true;
     saveSettings();
@@ -253,7 +253,7 @@ export async function main() {
       error: purchaseError,
     } = await sendData(purchaseLink, payload, options);
 
-    if ((await captcha_check(purchaseResponse)) || purchaseStatus === 403) {
+    if ((await captcha_check(purchaseResponse)) || [403, 409].includes(purchaseStatus)) {
       console.log("Captcha detected, stopping execution.");
       settings.stopExecutionFlag = true;
       saveSettings();
